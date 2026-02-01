@@ -1,0 +1,11 @@
+**/.git
+**/.gitignore
+**/.vscode
+**/.idea
+**/coverage
+**/.ssh
+**/.DS_Store
+**/venv*
+**/.venv*
+**/env*
+**/.env*

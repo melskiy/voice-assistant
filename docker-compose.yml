@@ -1,0 +1,79 @@
+x-settings:
+  image_versions:
+    BACKEND: &backend_image ${APP_IMAGE}:${APP_VERSION}
+
+services:
+
+  asr-service:
+    image: *backend_image
+    command: python -m src.services.asr_service.main
+    environment:
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/
+      - MODEL_PATH=${VOSK_MODEL_PATH}
+      - PORT=${ASR_PORT}
+    ports:
+      - "${ASR_HOST_PORT}:${ASR_PORT}"
+    volumes:
+      - ${MODELS_DIR}:/app/models
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+    restart: unless-stopped
+
+  nlu-service:
+    image: *backend_image
+    command: python -m src.services.nlu_service.main
+    environment:
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/
+      - PORT=${NLU_PORT}
+    ports:
+      - "${NLU_HOST_PORT}:${NLU_PORT}"
+    restart: unless-stopped
+
+  dialog-service:
+    image: *backend_image
+    command: python -m src.services.dialog_service.main
+    environment:
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      - REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}
+      - PORT=${DIALOG_PORT}
+    ports:
+      - "${DIALOG_HOST_PORT}:${DIALOG_PORT}"
+    restart: unless-stopped
+
+  notification-service:
+    image: *backend_image
+    command: python -m src.services.notification_service.main
+    environment:
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      - PORT=${NOTIFICATION_PORT}
+    ports:
+      - "${NOTIFICATION_HOST_PORT}:${NOTIFICATION_PORT}"
+    restart: unless-stopped
+
+
+  gateway-service:
+    image: *backend_image
+    command: python -m src.services.gateway_service.main
+
+    environment:
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/
+      - REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}
+      - PLUGINS_DIR=${PLUGINS_DIR}
+      - PORT=${GATEWAY_PORT}
+    ports:
+      - "${GATEWAY_HOST_PORT}:${GATEWAY_PORT}"
+    volumes:
+      - ${MODELS_DIR}:/app/models
+    restart: unless-stopped
+
+
+networks:
+  default:
+    external: true
+    name: ${NETWORK_NAME}

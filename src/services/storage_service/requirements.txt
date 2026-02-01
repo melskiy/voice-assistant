@@ -1,0 +1,6 @@
+# Storage Service dependencies
+grpcio>=1.59.0
+grpcio-tools>=1.59.0
+grpcio-reflection>=1.59.0
+asyncpg>=0.29.0
+rodi>=2.0.0

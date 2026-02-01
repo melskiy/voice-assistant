@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package voice_assistant.dialog;
+
+import "nlu.proto";
+
+// Dialog management messages
+message DialogRequest {
+    string session_id = 1;
+    voice_assistant.nlu.Intent intent = 2;
+    map<string, string> context = 3;
+}
+
+message DialogResponse {
+    string session_id = 1;
+    string response_text = 2;
+    string action = 3;
+    map<string, string> updated_context = 4;
+    bool requires_confirmation = 5;
+    bool session_complete = 6;
+}
+
+message DialogState {
+    string session_id = 1;
+    string current_intent = 2;
+    repeated DialogTurn conversation_history = 3;
+    repeated string pending_confirmations = 4;
+    map<string, string> context_variables = 5;
+}
+
+message DialogTurn {
+    string user_input = 1;
+    string system_response = 2;
+    voice_assistant.nlu.Intent intent = 3;
+    int64 timestamp_ms = 4;
+    float confidence = 5;
+}
+
+// Dialog Service
+service DialogService {
+    rpc ProcessIntent(DialogRequest) returns (DialogResponse);
+    rpc HandleConfirmation(ConfirmationRequest) returns (DialogResponse);
+    rpc GetDialogState(DialogStateRequest) returns (DialogState);
+    rpc ResetSession(ResetSessionRequest) returns (ResetSessionResponse);
+}
+
+message ConfirmationRequest {
+    string session_id = 1;
+    string response = 2;
+    map<string, string> context = 3;
+}
+
+message DialogStateRequest {
+    string session_id = 1;
+}
+
+message ResetSessionRequest {
+    string session_id = 1;
+}
+
+message ResetSessionResponse {
+    string session_id = 1;
+    bool success = 2;
+}
