@@ -26,6 +26,7 @@ from voice_assistant.domain.entities.shopping_list import ShoppingList, Shopping
 from voice_assistant.domain.entities.reminder import Reminder
 from voice_assistant.domain.value_objects.priority import Priority
 from .container import get_container, StorageServiceContainer
+from voice_assistant.infrastructure.container.service_containers import create_storage_service_container
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -318,6 +319,10 @@ class StorageServicer(storage_pb2_grpc.StorageServiceServicer):
 
 async def serve():
     """Start the gRPC Storage service"""
+    # Create Storage service container
+    storage_container = create_storage_service_container()
+    app_container = storage_container.get_container()
+
     # Create gRPC server
     server = grpc.aio.server(
         futures.ThreadPoolExecutor(max_workers=10),
@@ -326,11 +331,11 @@ async def serve():
             ('grpc.max_receive_message_length', 100 * 1024 * 1024),  # 100MB
         ]
     )
-    
+
     # Initialize container and database
     container = get_container()
     await container.initialize()
-    
+
     # Add the servicer to the server
     storage_servicer = StorageServicer(container)
     storage_pb2_grpc.add_StorageServiceServicer_to_server(storage_servicer, server)
@@ -345,13 +350,13 @@ async def serve():
 
     # Listen on port 50055
     server.add_insecure_port('[::]:50055')
-    
+
     logger.info("Starting Storage service on port 50055...")
-    
+
     try:
         await server.start()
         logger.info("Storage service started successfully")
-        
+
         # Keep the server running
         await server.wait_for_termination()
     except KeyboardInterrupt:

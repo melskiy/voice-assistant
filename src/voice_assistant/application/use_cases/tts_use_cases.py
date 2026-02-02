@@ -8,7 +8,7 @@ Side effects: None (stateless operation).
 from typing import List, Optional, AsyncIterator
 
 from ...domain.services.text_normalizer import RussianTextNormalizer
-from ...infrastructure.plugins.plugin_interface import TTSPlugin
+from ...application.ports.tts_port import TTSPort
 
 
 class SynthesizeSpeechUseCase:
@@ -20,28 +20,28 @@ class SynthesizeSpeechUseCase:
     
     def __init__(
         self,
-        tts_plugin: TTSPlugin,
+        tts_port: TTSPort,
         text_normalizer: Optional[RussianTextNormalizer] = None
     ):
-        self.tts_plugin = tts_plugin
+        self.tts_port = tts_port
         self.text_normalizer = text_normalizer or RussianTextNormalizer()
     
     async def execute(self, text: str) -> bytes:
         """
         Synthesize speech from text.
-        
+
         Args:
             text: Text to synthesize
-            
+
         Returns:
             Audio data as bytes
         """
         # Normalize text
         normalized_text = self.text_normalizer.normalize(text)
-        
+
         # Synthesize
-        audio_bytes = await self.tts_plugin.synthesize(normalized_text)
-        
+        audio_bytes = await self.tts_port.synthesize(normalized_text)
+
         return audio_bytes
     
     async def execute_streaming(

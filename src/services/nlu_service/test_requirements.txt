@@ -1,3 +1,4 @@
+# Test requirements for NLU Service (Python 3.12)
 pytest==7.3.1
 hypothesis==6.88.4
 pytest-asyncio==0.21.1

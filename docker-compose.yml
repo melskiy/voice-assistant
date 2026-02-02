@@ -9,8 +9,10 @@ services:
     command: python -m src.services.asr_service.main
     environment:
       - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/
-      - MODEL_PATH=${VOSK_MODEL_PATH}
-      - PORT=${ASR_PORT}
+      - VOSK_MODEL_PATH=${VOSK_MODEL_PATH}
+      - ASR_SERVICE_PORT=${ASR_PORT}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      - REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}
     ports:
       - "${ASR_HOST_PORT}:${ASR_PORT}"
     volumes:
@@ -22,16 +24,44 @@ services:
         reservations:
           memory: 1G
     restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
 
   nlu-service:
     image: *backend_image
     command: python -m src.services.nlu_service.main
     environment:
       - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/
-      - PORT=${NLU_PORT}
+      - NLU_SERVICE_PORT=${NLU_PORT}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      - REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}
     ports:
       - "${NLU_HOST_PORT}:${NLU_PORT}"
     restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+
+  tts-service:
+    image: *backend_image
+    command: python -m src.services.tts_service.main
+    environment:
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/
+      - TTS_SERVICE_PORT=${TTS_PORT}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      - REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}
+    ports:
+      - "${TTS_HOST_PORT}:${TTS_PORT}"
+    volumes:
+      - ${MODELS_DIR}:/app/models
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
 
   dialog-service:
     image: *backend_image
@@ -40,10 +70,30 @@ services:
       - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
       - REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}
-      - PORT=${DIALOG_PORT}
+      - DIALOG_SERVICE_PORT=${DIALOG_PORT}
     ports:
       - "${DIALOG_HOST_PORT}:${DIALOG_PORT}"
     restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+
+  storage-service:
+    image: *backend_image
+    command: python -m src.services.storage_service.main
+    environment:
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/
+      - STORAGE_SERVICE_PORT=${STORAGE_PORT}
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      - REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}
+    ports:
+      - "${STORAGE_HOST_PORT}:${STORAGE_PORT}"
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
 
   notification-service:
     image: *backend_image
@@ -51,26 +101,43 @@ services:
     environment:
       - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
-      - PORT=${NOTIFICATION_PORT}
+      - NOTIFICATION_SERVICE_PORT=${NOTIFICATION_PORT}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
     ports:
       - "${NOTIFICATION_HOST_PORT}:${NOTIFICATION_PORT}"
     restart: unless-stopped
-
+    depends_on:
+      - postgres
+      - rabbitmq
 
   gateway-service:
     image: *backend_image
     command: python -m src.services.gateway_service.main
-
     environment:
       - RABBITMQ_URL=amqp://${RABBITMQ_USER}:${RABBITMQ_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}/
       - REDIS_URL=redis://${REDIS_HOST}:${REDIS_PORT}
       - PLUGINS_DIR=${PLUGINS_DIR}
-      - PORT=${GATEWAY_PORT}
+      - GATEWAY_SERVICE_PORT=${GATEWAY_PORT}
+      - ASR_SERVICE_URL=${ASR_SERVICE_URL}
+      - NLU_SERVICE_URL=${NLU_SERVICE_URL}
+      - DIALOG_SERVICE_URL=${DIALOG_SERVICE_URL}
+      - TTS_SERVICE_URL=${TTS_SERVICE_URL}
+      - STORAGE_SERVICE_URL=${STORAGE_SERVICE_URL}
     ports:
       - "${GATEWAY_HOST_PORT}:${GATEWAY_PORT}"
     volumes:
       - ${MODELS_DIR}:/app/models
     restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+      - asr-service
+      - nlu-service
+      - tts-service
+      - dialog-service
+      - storage-service
+      - notification-service
 
 
 networks:

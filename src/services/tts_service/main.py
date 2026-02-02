@@ -24,61 +24,82 @@ from voice_assistant.application.use_cases.tts_use_cases import (
 )
 from voice_assistant.domain.services.text_normalizer import RussianTextNormalizer
 from voice_assistant.infrastructure.plugins.plugin_interface import TTSPlugin
+from voice_assistant.infrastructure.container.service_containers import create_tts_service_container
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def initialize_tts_plugin():
-    """Initialize TTS plugin."""
+def initialize_tts_plugin(tts_container):
+    """Initialize TTS plugin using the dependency injection container."""
     tts_plugin = None
-    
-    # Try Silero TTS
+
     try:
-        from plugins.tts_silero.plugin import SileroTTSPlugin
-        
-        config = {
-            "model_id": os.getenv("TTS_SILERO_MODEL_ID", "v3_ru.pt"),
-            "sample_rate": int(os.getenv("TTS_SILERO_SAMPLE_RATE", "48000")),
-            "speaker": os.getenv("TTS_SILERO_SPEAKER", "baya"),
-            "device": os.getenv("TTS_SILERO_DEVICE", "cpu")
-        }
-        
-        tts_plugin = SileroTTSPlugin(config)
-        logger.info("Silero TTS plugin initialized")
-        
+        # Try to get TTS plugin from container
+        plugin_manager = tts_container.resolve('plugin_manager')
+
+        # Get TTS plugin
+        tts_plugin = plugin_manager.get_tts_plugin()
+        if tts_plugin:
+            logger.info(f"TTS plugin loaded: {type(tts_plugin).__name__}")
+        else:
+            logger.warning("No TTS plugin found in container")
+
     except Exception as e:
-        logger.warning(f"Failed to initialize Silero TTS: {e}")
-    
-    # Fallback to mock
-    if not tts_plugin:
-        try:
-            from plugins.tts_mock.plugin import MockTTSPlugin
-            tts_plugin = MockTTSPlugin()
-            logger.info("Mock TTS plugin initialized as fallback")
-        except Exception as e:
-            logger.error(f"Failed to initialize Mock TTS: {e}")
-    
+        logger.error(f"Failed to initialize TTS plugin from container: {e}")
+
     return tts_plugin
 
 
 async def serve():
     """Start the gRPC TTS service."""
-    # Initialize plugin
-    tts_plugin = initialize_tts_plugin()
-    
+    # Create TTS service container
+    tts_container_obj = create_tts_service_container()
+    container = tts_container_obj.get_container()
+
+    # Initialize plugin using container
+    tts_plugin = initialize_tts_plugin(tts_container_obj)
+
+    # If plugin wasn't properly loaded, try to load it directly
+    if not tts_plugin:
+        # Attempt to load plugins directly using plugin registration
+        try:
+            from plugins.tts_silero.registration import SileroTtsPluginRegistration
+            config = {
+                "model_id": os.getenv("TTS_SILERO_MODEL_ID", "v3_ru.pt"),
+                "sample_rate": int(os.getenv("TTS_SILERO_SAMPLE_RATE", "48000")),
+                "speaker": os.getenv("TTS_SILERO_SPEAKER", "baya"),
+                "device": os.getenv("TTS_SILERO_DEVICE", "cpu")
+            }
+            SileroTtsPluginRegistration.register(container, config)
+            tts_plugin = container.resolve('ITtsService')
+            logger.info("Silero TTS plugin loaded via direct registration")
+        except Exception as e:
+            logger.warning(f"Could not load Silero TTS plugin: {e}")
+            try:
+                from plugins.tts_mock.registration import MockTtsPluginRegistration
+                config = {
+                    "delay_ms": 100
+                }
+                MockTtsPluginRegistration.register(container, config)
+                tts_plugin = container.resolve('ITtsService')
+                logger.info("Mock TTS plugin loaded via direct registration")
+            except Exception as e2:
+                logger.error(f"Could not load Mock TTS plugin: {e2}")
+                tts_plugin = None
+
     if not tts_plugin:
         logger.error("No TTS plugin available, cannot start service")
         return
-    
-    # Create use cases
-    synthesize_use_case = SynthesizeSpeechUseCase(
-        tts_plugin=tts_plugin,
-        text_normalizer=RussianTextNormalizer()
-    )
-    get_voices_use_case = GetAvailableVoicesUseCase()
-    
+
+    # Create use cases using container
+    # Get the TTS plugin from the container and treat it as an TTSPort
+    tts_plugin = tts_container_obj.resolve('plugin_manager').get_tts_plugin()
+
+    synthesize_use_case = tts_container_obj.create_synthesize_speech_use_case(tts_port=tts_plugin)
+    get_voices_use_case = tts_container_obj.create_get_available_voices_use_case()
+
     # Create gRPC server
     server = grpc.aio.server(
         futures.ThreadPoolExecutor(max_workers=10),
@@ -87,13 +108,13 @@ async def serve():
             ('grpc.max_receive_message_length', 100 * 1024 * 1024),
         ]
     )
-    
+
     # Create servicer
     tts_servicer = TTSServiceServicer(
         synthesize_use_case=synthesize_use_case,
         get_voices_use_case=get_voices_use_case
     )
-    
+
     # Add servicer to server
     tts_pb2_grpc.add_TTSServiceServicer_to_server(tts_servicer, server)
 
@@ -107,9 +128,9 @@ async def serve():
 
     # Listen on port 50054
     server.add_insecure_port('[::]:50054')
-    
+
     logger.info("Starting TTS service on port 50054...")
-    
+
     try:
         await server.start()
         logger.info("TTS service started successfully")

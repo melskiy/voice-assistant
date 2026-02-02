@@ -23,16 +23,39 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RabbitMQConfig:
     """Configuration for RabbitMQ connection"""
-    url: str = "amqp://guest:guest@localhost:5672/"
-    host: str = "localhost"
-    port: int = 5672
-    username: str = "guest"
-    password: str = "guest"
-    virtual_host: str = "/"
-    exchange_name: str = "voice_assistant_exchange"
-    exchange_type: str = "topic"
-    reconnect_delay: float = 5.0
-    max_reconnect_attempts: int = 10
+    url: str = None
+    host: str = None
+    port: int = None
+    username: str = None
+    password: str = None
+    virtual_host: str = None
+    exchange_name: str = None
+    exchange_type: str = None
+    reconnect_delay: float = None
+    max_reconnect_attempts: int = None
+
+    def __post_init__(self):
+        import os
+        if self.url is None:
+            self.url = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
+        if self.host is None:
+            self.host = os.getenv("RABBITMQ_HOST", "localhost")
+        if self.port is None:
+            self.port = int(os.getenv("RABBITMQ_PORT", "5672"))
+        if self.username is None:
+            self.username = os.getenv("RABBITMQ_USER", "guest")
+        if self.password is None:
+            self.password = os.getenv("RABBITMQ_PASSWORD", "guest")
+        if self.virtual_host is None:
+            self.virtual_host = os.getenv("RABBITMQ_VHOST", "/")
+        if self.exchange_name is None:
+            self.exchange_name = os.getenv("RABBITMQ_EXCHANGE", "voice_assistant_exchange")
+        if self.exchange_type is None:
+            self.exchange_type = os.getenv("RABBITMQ_EXCHANGE_TYPE", "topic")
+        if self.reconnect_delay is None:
+            self.reconnect_delay = float(os.getenv("RABBITMQ_RECONNECT_DELAY", "5.0"))
+        if self.max_reconnect_attempts is None:
+            self.max_reconnect_attempts = int(os.getenv("RABBITMQ_MAX_RECONNECT", "10"))
 
 
 class RabbitMQClient:

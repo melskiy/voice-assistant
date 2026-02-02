@@ -12,7 +12,7 @@ Architecture:
 
 Usage:
     python -m src.services.gateway_service.main
-    
+
     Or with uvicorn:
     uvicorn src.services.gateway_service.main:app --host 0.0.0.0 --port 8000
 """
@@ -29,6 +29,7 @@ from voice_assistant.presentation.views import ViewRegistry
 from voice_assistant.application.services.audio_stream_manager import AudioStreamManager
 from voice_assistant.infrastructure.cache.session_cache import SessionCache
 from voice_assistant.interfaces.container import Config
+from voice_assistant.infrastructure.container.service_containers import create_gateway_service_container
 
 # Note: PluginService is intentionally NOT imported here.
 # Plugins are loaded by their respective microservices (ASR/NLU/TTS),
@@ -95,22 +96,26 @@ async def initialize_audio_manager(config: Config) -> AudioStreamManager:
 async def lifespan(app: FastAPI):
     """
     Application lifespan manager.
-    
+
     Handles startup initialization and graceful shutdown.
     """
     logger.info("=" * 50)
     logger.info("Starting Gateway Service...")
     logger.info("=" * 50)
-    
+
+    # Create Gateway service container
+    gateway_container = create_gateway_service_container()
+    container = gateway_container.get_container()
+
     # Initialize configuration
     config = Config()
-    
+
     # Initialize Redis
     redis_client = await initialize_redis(config)
-    
+
     # Initialize session cache
     session_cache = SessionCache(redis_client, config.session_timeout_minutes * 60)
-    
+
     # Initialize audio stream manager (uses gRPC to connect to ASR/NLU/TTS services)
     audio_stream_manager = await initialize_audio_manager(config)
 
@@ -131,21 +136,21 @@ async def lifespan(app: FastAPI):
         "session_cache": session_cache,
         "audio_stream_manager": audio_stream_manager,
     }
-    
+
     viewset_instances = ViewRegistry.create_all(app, base_prefix="/v1", **dependencies)
     logger.info(f"Initialized {len(viewset_instances)} viewsets")
-    
+
     logger.info("=" * 50)
     logger.info("Gateway Service started successfully")
     logger.info("=" * 50)
-    
+
     yield  # Application runs here
-    
+
     # Shutdown sequence
     logger.info("=" * 50)
     logger.info("Shutting down Gateway Service...")
     logger.info("=" * 50)
-    
+
     try:
         # Close audio connections (gRPC connections to ASR/NLU/TTS services)
         if hasattr(app.state, 'audio_stream_manager'):
@@ -156,7 +161,7 @@ async def lifespan(app: FastAPI):
             await app.state.redis_client.aclose()
 
         logger.info("Gateway Service shutdown complete")
-        
+
     except Exception as e:
         logger.error(f"Error during shutdown: {e}")
     finally:
@@ -195,7 +200,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "src.services.gateway_service.main:app",
         host="0.0.0.0",
-        port=8000,
+        port=int(os.getenv('GATEWAY_SERVICE_PORT', '8000')),
         reload=False,
         log_level="info"
     )

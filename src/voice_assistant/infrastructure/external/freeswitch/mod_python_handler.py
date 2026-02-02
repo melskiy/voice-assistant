@@ -220,8 +220,9 @@ class GatewayServiceClient:
     Handles call control and audio streaming.
     """
     
-    def __init__(self, gateway_url: str = "http://localhost:8000"):
-        self.gateway_url = gateway_url
+    def __init__(self, gateway_url: str = None):
+        import os
+        self.gateway_url = gateway_url or os.getenv("GATEWAY_SERVICE_URL", "http://localhost:8000")
         self.session = None
         self._lock = threading.Lock()
     

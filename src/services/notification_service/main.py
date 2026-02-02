@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from .container import get_container, NotificationServiceContainer
 from .notification_worker import NotificationWorker
+from voice_assistant.infrastructure.container.service_containers import create_notification_service_container
 
 # Set up logging
 logging.basicConfig(
@@ -76,6 +77,10 @@ class NotificationServicer:
 
 async def serve():
     """Start the Notification Worker service"""
+    # Create Notification service container
+    notification_container = create_notification_service_container()
+    app_container = notification_container.get_container()
+
     # Create gRPC server
     server = aio.server(
         futures.ThreadPoolExecutor(max_workers=10),
@@ -84,16 +89,16 @@ async def serve():
             ('grpc.max_receive_message_length', 50 * 1024 * 1024),  # 50MB
         ]
     )
-    
+
     # Initialize container
     container = get_container()
-    
+
     try:
         await container.initialize()
     except Exception as e:
         logger.error(f"Failed to initialize container: {e}")
         # Continue anyway - some components might work
-    
+
     # Create notification worker
     worker = NotificationWorker(
         rabbitmq_client=container.get_rabbitmq_client(),
@@ -102,19 +107,19 @@ async def serve():
         queue_name=os.getenv('NOTIFICATION_QUEUE_NAME', 'notifications'),
         routing_keys=['notification.*', 'reminder.due']
     )
-    
+
     # Start the worker
     worker_started = await worker.start()
     if not worker_started:
         logger.warning("Failed to start notification worker immediately, will retry")
-    
+
     # Process any pending notifications from database
     try:
         processed = await worker.process_pending_notifications()
         logger.info(f"Processed {processed} pending notifications from database")
     except Exception as e:
         logger.error(f"Error processing pending notifications: {e}")
-    
+
     # Add the servicer to the server
     # Note: We're creating a simple servicer without protobuf for now
     # In production, you would generate notification_pb2 from a .proto file
@@ -132,16 +137,16 @@ async def serve():
 
     # Listen on port 50056
     server.add_insecure_port('[::]:50056')
-    
+
     logger.info("Starting Notification Worker service on port 50056...")
-    
+
     try:
         await server.start()
         logger.info("Notification Worker service started successfully")
-        
+
         # Keep the server running
         await server.wait_for_termination()
-        
+
     except KeyboardInterrupt:
         logger.info("Shutting down Notification Worker service...")
     except Exception as e:
@@ -149,13 +154,13 @@ async def serve():
     finally:
         # Stop worker
         await worker.stop()
-        
+
         # Shutdown container
         await container.shutdown()
-        
+
         # Stop server
         await server.stop(grace=5)
-        
+
         logger.info("Notification Worker service shutdown complete")
 
 

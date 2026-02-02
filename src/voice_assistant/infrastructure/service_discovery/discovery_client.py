@@ -378,7 +378,25 @@ class VoiceAssistantDiscovery:
         return await client.get_endpoint('storage_service')
     
     @classmethod
-    def get_default_address(cls, service_name: str, host: str = 'localhost') -> str:
-        """Get default address for a service"""
-        port = cls.DEFAULT_PORTS.get(service_name, 80)
+    def get_default_address(cls, service_name: str, host: str = None) -> str:
+        if host is None:
+            from ....interfaces.container import Config
+            config = Config()
+            # Use the appropriate host based on service name
+            if service_name in ['asr', 'nlu', 'dialog', 'tts', 'storage', 'notification']:
+                # For gRPC services, we need to get the appropriate URL from config
+                service_urls = {
+                    'asr': getattr(config, 'asr_service_url', 'localhost:50051'),
+                    'nlu': getattr(config, 'nlu_service_url', 'localhost:50052'),
+                    'dialog': getattr(config, 'dialog_service_url', 'localhost:50053'),
+                    'tts': getattr(config, 'tts_service_url', 'localhost:50054'),
+                    'storage': getattr(config, 'storage_service_url', 'localhost:50055'),
+                    'notification': 'localhost:50056',  # This might not be in config
+                }
+                full_address = service_urls.get(service_name, 'localhost:8000')
+                # Extract just the host part
+                host = full_address.split(':')[0] if ':' in full_address else full_address
+            else:
+                host = config.freeswitch_host  # Default to freeswitch_host for other services
+        port = cls.DEFAULT_PORTS.get(service_name, cls.DEFAULT_PORTS['gateway'])
         return f"{host}:{port}"

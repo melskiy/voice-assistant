@@ -12,7 +12,8 @@ from voice_assistant.infrastructure.plugins.plugin_contracts import (
     PluginMetadata,
     ITtsService
 )
-from ..interfaces import ITtsModel, IAudioConverter
+from . import ITtsModel, IAudioConverter
+
 from .services.silero_model import SileroModelFactory, TorchAudioConverter
 from .services.tts_service import SileroTtsService
 

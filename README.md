@@ -1,175 +1,256 @@
-# Voice Assistant Core
+# Голосовой помощник - Архитектура микросервисов
 
-A modular voice assistant system with pluggable ASR, NLU, and TTS engines, designed for integration with FreeSWITCH.
+Комплексная система голосового помощника, построенная на архитектуре микросервисов с использованием Python, gRPC и принципов DDD.
 
-## Architecture
+## Обзор архитектуры
 
-The system follows Domain-Driven Design (DDD) principles with three main layers:
+Система следует принципам Domain-Driven Design (DDD) с архитектурой микросервисов:
 
-- **Domain Layer**: Contains core business logic and entities with no external dependencies
-- **Application Layer**: Implements use cases and orchestrates domain objects
-- **Infrastructure Layer**: Handles external dependencies like databases, message queues, and plugins
-
-## Features
-
-- **Pluggable Architecture**: Swap ASR, NLU, and TTS engines without code changes
-- **Offline Operation**: All processing works without internet connectivity
-- **Russian Language Support**: Optimized for Russian language voice processing
-- **Microservices Ready**: Designed for containerized deployment
-- **FreeSWITCH Integration**: Ready for telephony integration
-
-## Plugin System
-
-The voice assistant uses a flexible plugin system that supports:
-
-### ASR Plugins
-- **Vosk ASR**: Lightweight, fast recognition for Russian
-- **Whisper.cpp**: More accurate but resource-intensive
-
-### NLU Plugins  
-- **Regex-based**: Pattern matching for intent recognition
-- **Scikit-learn**: ML-based intent classification
-
-### TTS Plugins
-- **Silero TTS**: High-quality Russian text-to-speech
-- **Mock TTS**: For testing purposes
-
-## Installation
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd voice-assistant-core
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   FreeSWITCH    │────│   Gateway       │────│   ASR Service   │
+│                 │    │   Service       │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                              │                       │
+                              ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Notification  │    │   Dialog        │────│   NLU Service   │
+│   Service       │    │   Service       │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 ▼
+                    ┌─────────────────┐
+                    │ Storage Service │
+                    │                 │
+                    └─────────────────┘
+                              │
+                              ▼
+                    ┌─────────────────┐
+                    │   TTS Service   │
+                    │                 │
+                    └─────────────────┘
 ```
 
-2. Install dependencies:
+## Путь вызова через систему
+
+1. **Инициация вызова**: FreeSWITCH получает входящий вызов и устанавливает соединение с Gateway Service через ESL (Event Socket Library)
+2. **Создание сессии**: Gateway Service создает новую сессию и инициализирует контекст вызова
+3. **Потоковое аудио**: В реальном времени аудио-фрагменты передаются из FreeSWITCH в ASR Service через Gateway
+4. **Распознавание речи**: ASR Service преобразует аудио в текст с оценкой достоверности
+5. **Обработка интента**: Текст отправляется в NLU Service для извлечения интента и сущностей
+6. **Управление диалогом**: Dialog Service обрабатывает интент и управляет состоянием диалога
+7. **Генерация ответа**: TTS Service синтезирует аудио ответа
+8. **Воспроизведение аудио**: Аудио передается обратно в FreeSWITCH для воспроизведения вызывающему
+9. **Сохранение данных**: Списки покупок, напоминания и данные сессии сохраняются в Storage Service
+10. **Уведомления**: Соответствующие события вызывают уведомления через Notification Service
+
+## Интеграция с FreeSWITCH
+
+Система интегрируется с FreeSWITCH через:
+
+- **ESL (Event Socket Library)**: Связь в реальном времени между FreeSWITCH и Gateway Service
+- **Mod_SPANDSP**: Возможности обработки факса и DTMF
+- **RTP Streaming**: Потоковая передача аудио в реальном времени для обработки голоса
+- **Управление вызовами**: Возможность программно отвечать, завершать и перенаправлять вызовы
+- **Обнаружение DTMF**: Поддержка обработки сенсорного ввода
+
+Gateway Service выступает в качестве моста между FreeSWITCH и внутренними микросервисами, обрабатывая преобразование протоколов и потоковую передачу аудио.
+
+## Сервисы
+
+### Gateway Service
+- Точка входа для всех API-запросов и интеграции с FreeSWITCH
+- Обрабатывает потоковое аудио между FreeSWITCH и ASR сервисом
+- Координирует вызовы между сервисами
+- Порт: 8000 (настраивается)
+
+### ASR Service (Automatic Speech Recognition)
+- Преобразует аудио в текст в реальном времени
+- Поддерживает несколько движков ASR (Vosk, Whisper)
+- Обрабатывает потоковое аудио и фрагментирование
+- Реализует обработку на основе достоверности
+- Порт: 50051 (настраивается)
+
+### NLU Service (Natural Language Understanding)
+- Обрабатывает текст для извлечения интентов и сущностей
+- Поддерживает несколько движков NLU (Regex, Sklearn, Spacy)
+- Классификация интентов на основе достоверности
+- Обработка русского языка
+- Порт: 50052 (настраивается)
+
+### TTS Service (Text-to-Speech)
+- Преобразует текст в аудио в реальном времени
+- Поддерживает несколько движков TTS (Silero, Mock)
+- Высококачественный синтез речи на русском языке
+- Генерация потокового аудио
+- Порт: 50054 (настраивается)
+
+### Dialog Service
+- Управляет потоком и состоянием диалога
+- Обрабатывает многоразовые разговоры
+- Обрабатывает пользовательские интенты и управляет контекстом
+- Реализует механизмы восстановления после ошибок
+- Порт: 50053 (настраивается)
+
+### Storage Service
+- Слой постоянного хранения данных для всех сервисов
+- Управляет списками покупок, напоминаниями и данными сессии
+- Бэкенд PostgreSQL с пулом подключений
+- Реализует операции CRUD для доменных сущностей
+- Порт: 50055 (настраивается)
+
+### Notification Service
+- Обрабатывает уведомления событий и оповещения
+- Интегрируется с Telegram и другими платформами обмена сообщениями
+- Система обмена сообщений на основе RabbitMQ
+- Реализует логику повторных попыток и отслеживание статуса
+- Порт: 50056 (настраивается)
+
+## Технологический стек
+
+- **Язык**: Python 3.12
+- **Фреймворк**: FastAPI, gRPC
+- **Архитектура**: DDD, микросервисы
+- **Телефония**: FreeSWITCH
+- **База данных**: PostgreSQL
+- **Кэш**: Redis
+- **Обмен сообщениями**: RabbitMQ
+- **Контейнеризация**: Docker, Docker Compose
+- **Мониторинг**: Prometheus, Grafana
+
+## Установка и настройка
+
+### Предварительные требования
+- Python 3.12
+- Docker и Docker Compose
+- FreeSWITCH (для голосовых вызовов)
+- PostgreSQL (или Docker для контейнерной БД)
+- Redis (или Docker для контейнерного Redis)
+- RabbitMQ (или Docker для контейнерного RabbitMQ)
+
+### Локальная разработка
+
+1. Клонируйте репозиторий:
+```bash
+git clone <repository-url>
+cd voice-assistant
+```
+
+2. Установите зависимости:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Download required models (for Vosk ASR):
+3. Настройте переменные окружения:
 ```bash
-# Download Russian Vosk model
-wget https://alphacephei.com/vosk/models/vosk-model-small-ru-0.22.zip
-unzip vosk-model-small-ru-0.22.zip
-mv vosk-model-small-ru-0.22 models/
+cp .env.example .env
+# Отредактируйте .env с вашей конфигурацией
 ```
 
-## Configuration
-
-Configure plugins in `src/plugins/config.py`:
-
-```python
-PLUGIN_CONFIGS = {
-    "asr.vosk": {
-        "enabled": True,
-        "model_path": "./models/vosk-model-small-ru-0.22",
-        "sample_rate": 8000,
-        "partial_results": True
-    },
-    # ... other configurations
-}
-```
-## Running the System
-
-### Development Mode
+4. Запустите инфраструктурные сервисы:
 ```bash
-python -m src.main
-```
-
-### Docker Deployment
-
-The system uses a modular Docker setup with a single voice_assistant image and separated infrastructure and services:
-
-#### Build Images First
-```bash
-# Build the base image first
-docker build -f image.Dockerfile -t voice-assistant-base:latest .
-
-# Build the application image (uses the base image)
-docker build -t voice-assistant-app:latest .
-
-# Or build both with docker-compose
-docker-compose build
-```
-
-#### Quick Start - All Services
-```bash
-# Make sure to build images first, then run
-make all
-# or
+cd infrastructure
 docker-compose up -d
 ```
 
-#### Separate Infrastructure and Services
+5. Запустите сервисы приложения:
 ```bash
+# В отдельных терминалах для каждого сервиса
+python -m src.services.asr_service.main
+python -m src.services.nlu_service.main
+python -m src.services.tts_service.main
+python -m src.services.dialog_service.main
+python -m src.services.storage_service.main
+python -m src.services.notification_service.main
+python -m src.services.gateway_service.main
+```
 
+### Развертывание с Docker
 
-# Start application services (Gateway, ASR, NLU, etc.)
-make services
-# or
+1. Соберите образ приложения:
+```bash
+docker build -t voice_assistant:latest .
+```
+
+2. Запустите с Docker Compose:
+```bash
 docker-compose -f docker-compose.yml up -d
 ```
 
-#### Useful Commands
+### Конфигурация FreeSWITCH
+
+Для интеграции с FreeSWITCH:
+
+1. Настройте соединение ESL в FreeSWITCH:
+```xml
+<param name="socket-host" value="0.0.0.0"/>
+<param name="socket-port" value="8021"/>
+<param name="socket-password" value="ClueCon"/>
+```
+
+2. Установите переменные окружения для подключения к FreeSWITCH:
 ```bash
-make help           # Show all available commands
-make status         # Show running containers
-make logs           # View logs from all services
-make stop           # Stop all services
-make clean          # Stop and remove volumes
-make rebuild        # Rebuild and restart all services
+FREESWITCH_HOST=your-freeswitch-host
+FREESWITCH_PORT=8021
+FREESWITCH_PASSWORD=ClueCon
 ```
 
-## Project Structure
+3. Gateway Service автоматически подключится к FreeSWITCH и будет обрабатывать события вызовов.
 
+## Конфигурация
+
+Все сервисы настраиваются с использованием переменных окружения. См. `.env.example` для полного списка доступных параметров конфигурации.
+
+Основные области конфигурации:
+- Подключения к базам данных
+- Порты и URL-адреса сервисов
+- Параметры интеграции с FreeSWITCH
+- Конфигурации плагинов
+- Ограничения ресурсов
+- Параметры обработки аудио
+
+## Архитектура плагинов
+
+Система поддерживает подключаемые компоненты:
+- **ASR плагины**: Vosk, Whisper (планируется)
+- **NLU плагины**: Regex, Sklearn, Spacy
+- **TTS плагины**: Silero, Mock
+- **Storage плагины**: PostgreSQL, Redis
+- **Messaging плагины**: RabbitMQ
+
+Плагины настраиваются в `src/plugins/config.py`.
+
+## Документация по API
+
+Документация по API доступна по эндпоинтам `/docs` и `/redoc` сервиса Gateway.
+
+## Тестирование
+
+Запустите тесты с помощью pytest:
+```bash
+pytest
 ```
-├── src/
-│   ├── voice_assistant/
-│   │   ├── domain/          # Domain layer (business logic)
-│   │   ├── application/     # Application layer (use cases)
-│   │   └── infrastructure/  # Infrastructure layer (plugins, persistence)
-│   ├── services/            # Microservices
-│   └── plugins/             # Plugin implementations
-├── docs/                    # Documentation
-├── plans/                   # Architecture plans
-├── image.Dockerfile         # Base image with common dependencies
-├── Dockerfile               # Application image (extends base image)
-├── docker-compose.yml       # Main compose file (all services)
-├── docker-compose.infra.yml # Infrastructure services only
-├── docker-compose.services.yml # Application services only
-├── Makefile                 # Convenient commands
-├── requirements.txt         # Core requirements (voice_assistant by all services)
-├── requirements-dev.txt     # Development requirements
-└── tests/                   # Test suite
+
+Запустите с покрытием:
+```bash
+pytest --cov=src
 ```
 
-## Docker Image Optimization
+## Мониторинг и наблюдаемость
 
-The system uses a voice_assistant image approach to reduce redundancy:
+- **Метрики**: Доступны через Prometheus
+- **Логирование**: Структурированное логирование с настраиваемыми уровнями
+- **Проверки здоровья**: Каждый сервис предоставляет эндпоинты проверки здоровья
 
-- **image.Dockerfile**: Base image with common Python dependencies and system libraries
-- **Dockerfile**: Application image that extends the base image with application code
-- **All services**: Use the same application image with different commands
-- **voice_assistant requirements**: Single requirements.txt file for all services
+## Вклад в развитие
 
-## Infrastructure Separation
+1. Форкните репозиторий
+2. Создайте ветку функции
+3. Внесите изменения
+4. Добавьте тесты для новой функциональности
+5. Отправьте pull request
 
-Infrastructure services (PostgreSQL, Redis, RabbitMQ) are separated from application services:
-- Can be managed independently
-- Allows for independent scaling
-- Infrastructure can run continuously while services are updated
-- Better resource allocation
+## Лицензия
 
-## Contributing
-
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License - см. файл LICENSE для деталей.

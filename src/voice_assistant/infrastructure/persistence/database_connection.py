@@ -1,9 +1,3 @@
-"""
-Database connection management for PostgreSQL.
-Implements connection pooling and transaction management.
-
-Requirements: 7.1, 7.2, 7.3, 7.4, 7.5
-"""
 import asyncio
 import logging
 from typing import Optional, Any, AsyncGenerator
@@ -19,24 +13,25 @@ class DatabaseConfig:
     
     def __init__(
         self,
-        host: str = "localhost",
-        port: int = 5432,
-        database: str = "voice_assistant",
-        user: str = "postgres",
-        password: str = "",
-        min_pool_size: int = 5,
-        max_pool_size: int = 20,
-        command_timeout: int = 60,
+        host: str = None,
+        port: int = None,
+        database: str = None,
+        user: str = None,
+        password: str = None,
+        min_pool_size: int = None,
+        max_pool_size: int = None,
+        command_timeout: int = None,
         max_inactive_connection_lifetime: int = 300
     ):
-        self.host = host
-        self.port = port
-        self.database = database
-        self.user = user
-        self.password = password
-        self.min_pool_size = min_pool_size
-        self.max_pool_size = max_pool_size
-        self.command_timeout = command_timeout
+        import os
+        self.host = host or os.getenv("DB_HOST", "localhost")
+        self.port = port or int(os.getenv("DB_PORT", "5432"))
+        self.database = database or os.getenv("DB_NAME", "voice_assistant")
+        self.user = user or os.getenv("DB_USER", "postgres")
+        self.password = password or os.getenv("DB_PASSWORD", "")
+        self.min_pool_size = min_pool_size or int(os.getenv("DB_MIN_POOL_SIZE", "5"))
+        self.max_pool_size = max_pool_size or int(os.getenv("DB_MAX_POOL_SIZE", "20"))
+        self.command_timeout = command_timeout or int(os.getenv("DB_COMMAND_TIMEOUT", "60"))
         self.max_inactive_connection_lifetime = max_inactive_connection_lifetime
     
     @property

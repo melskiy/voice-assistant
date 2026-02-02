@@ -10,7 +10,7 @@ from datetime import datetime
 
 from ...domain.value_objects.audio_chunk import AudioChunk
 from ...application.dto.transcription_dto import TranscriptionDTO
-from ...infrastructure.plugins.plugin_interface import ASRPlugin
+from ...application.ports.asr_port import ASRPort
 from ...infrastructure.resilience.circuit_breaker import CircuitBreaker
 
 
@@ -24,8 +24,8 @@ class TranscribeAudioUseCase:
     
     def __init__(
         self,
-        primary_asr: ASRPlugin,
-        fallback_asr: Optional[ASRPlugin],
+        primary_asr: ASRPort,
+        fallback_asr: Optional[ASRPort],
         primary_circuit_breaker: CircuitBreaker,
         fallback_circuit_breaker: Optional[CircuitBreaker],
         confidence_threshold: float = 0.7
@@ -142,8 +142,8 @@ class ManageASRSessionUseCase:
     
     def __init__(
         self,
-        primary_asr: ASRPlugin,
-        fallback_asr: Optional[ASRPlugin]
+        primary_asr: ASRPort,
+        fallback_asr: Optional[ASRPort]
     ):
         self.primary_asr = primary_asr
         self.fallback_asr = fallback_asr

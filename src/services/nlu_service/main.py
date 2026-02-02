@@ -11,6 +11,7 @@ from voice_assistant.application.use_cases.nlu_use_cases import (
     ExtractIntentUseCase,
     ProcessConfidenceUseCase
 )
+from voice_assistant.infrastructure.container.service_containers import create_nlu_service_container
 
 try:
     from confidence_handler import ConfidenceHandler
@@ -24,62 +25,83 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def initialize_nlu_plugin():
-    """Initialize NLU plugin."""
+def initialize_nlu_plugin(nlu_container):
+    """Initialize NLU plugin using the dependency injection container."""
     nlu_plugin = None
-    
-    # Get configured plugin ID
-    plugin_id = os.getenv("NLU_PLUGIN_ID", "nlu.sklearn")
-    
-    # Try to load plugin
+
     try:
-        if plugin_id == "nlu.sklearn":
-            from plugins.nlu_sklearn.plugin import SklearnNLUPlugin
-            nlu_plugin = SklearnNLUPlugin({})
-            logger.info("Sklearn NLU plugin initialized")
-        elif plugin_id == "nlu.regex":
-            from plugins.nlu_regex.plugin import RegexNLUPlugin
-            nlu_plugin = RegexNLUPlugin({})
-            logger.info("Regex NLU plugin initialized")
-        elif plugin_id == "nlu.spacy":
-            from plugins.nlu_spacy.plugin import SpacyNLUPlugin
-            nlu_plugin = SpacyNLUPlugin({})
-            logger.info("Spacy NLU plugin initialized")
+        # Try to get NLU plugin from container
+        plugin_manager = nlu_container.resolve('plugin_manager')
+
+        # Get NLU plugin
+        nlu_plugin = plugin_manager.get_nlu_plugin()
+        if nlu_plugin:
+            logger.info(f"NLU plugin loaded: {type(nlu_plugin).__name__}")
         else:
-            logger.warning(f"Unknown NLU plugin: {plugin_id}")
-            
+            logger.warning("No NLU plugin found in container")
+
     except Exception as e:
-        logger.error(f"Failed to initialize NLU plugin {plugin_id}: {e}")
-    
+        logger.error(f"Failed to initialize NLU plugin from container: {e}")
+
     return nlu_plugin
 
 
 async def serve():
     """Start the gRPC NLU service."""
-    # Initialize plugin
-    nlu_plugin = initialize_nlu_plugin()
-    
+    # Create NLU service container
+    nlu_container_obj = create_nlu_service_container()
+    container = nlu_container_obj.get_container()
+
+    # Initialize plugin using container
+    nlu_plugin = initialize_nlu_plugin(nlu_container_obj)
+
+    # If plugin wasn't properly loaded, try to load it directly
+    if not nlu_plugin:
+        # Attempt to load plugins directly using plugin registration
+        try:
+            from plugins.nlu_regex.registration import RegexNluPluginRegistration
+            config = {
+                "language": "ru",
+                "case_sensitive": False
+            }
+            RegexNluPluginRegistration.register(container, config)
+            nlu_plugin = container.resolve('INluService')
+            logger.info("Regex NLU plugin loaded via direct registration")
+        except Exception as e:
+            logger.warning(f"Could not load Regex NLU plugin: {e}")
+            try:
+                from plugins.nlu_sklearn.registration import SklearnNluPluginRegistration
+                config = {
+                    "language": "ru",
+                    "train_on_init": True
+                }
+                SklearnNluPluginRegistration.register(container, config)
+                nlu_plugin = container.resolve('INluService')
+                logger.info("Sklearn NLU plugin loaded via direct registration")
+            except Exception as e2:
+                logger.error(f"Could not load Sklearn NLU plugin: {e2}")
+                nlu_plugin = None
+
     if not nlu_plugin:
         logger.error("No NLU plugin available, cannot start service")
         return
-    
-    # Create use cases
-    extract_intent_use_case = ExtractIntentUseCase(
-        nlu_plugin=nlu_plugin,
+
+    # Create use cases using container
+    # Get the NLU plugin from the container and treat it as an NLUPort
+    nlu_plugin = nlu_container_obj.resolve('plugin_manager').get_nlu_plugin()
+
+    extract_intent_use_case = nlu_container_obj.create_extract_intent_use_case(
+        nlu_port=nlu_plugin,
         confidence_threshold=0.7
     )
-    
+
     # Use confidence handler thresholds if available
     if CONFIDENCE_HANDLER_AVAILABLE:
         handler = ConfidenceHandler(threshold=0.7)
-        process_confidence_use_case = ProcessConfidenceUseCase(
-            high_threshold=0.8,
-            medium_threshold=0.6,
-            low_threshold=0.4
-        )
+        process_confidence_use_case = nlu_container_obj.create_process_confidence_use_case()
     else:
-        process_confidence_use_case = ProcessConfidenceUseCase()
-    
+        process_confidence_use_case = nlu_container_obj.create_process_confidence_use_case()
+
     # Create gRPC server
     server = grpc.aio.server(
         futures.ThreadPoolExecutor(max_workers=10),
@@ -88,13 +110,13 @@ async def serve():
             ('grpc.max_receive_message_length', 100 * 1024 * 1024),
         ]
     )
-    
+
     # Create servicer
     nlu_servicer = NLUServiceServicer(
         extract_intent_use_case=extract_intent_use_case,
         process_confidence_use_case=process_confidence_use_case
     )
-    
+
     # Add servicer to server
     nlu_pb2_grpc.add_NLUServiceServicer_to_server(nlu_servicer, server)
 
@@ -108,9 +130,9 @@ async def serve():
 
     # Listen on port 50052
     server.add_insecure_port('[::]:50052')
-    
+
     logger.info("Starting NLU service on port 50052...")
-    
+
     try:
         await server.start()
         logger.info("NLU service started successfully")

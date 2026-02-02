@@ -22,14 +22,24 @@ scrape_configs:
       - targets: ["nlu-service:8002"]
     metrics_path: /metrics
 
+  - job_name: "tts-service"
+    static_configs:
+      - targets: ["tts-service:8003"]
+    metrics_path: /metrics
+
   - job_name: "dialog-service"
     static_configs:
-      - targets: ["dialog-service:8003"]
+      - targets: ["dialog-service:8004"]
+    metrics_path: /metrics
+
+  - job_name: "storage-service"
+    static_configs:
+      - targets: ["storage-service:8005"]
     metrics_path: /metrics
 
   - job_name: "notification-service"
     static_configs:
-      - targets: ["notification-service:8004"]
+      - targets: ["notification-service:8006"]
     metrics_path: /metrics
 
   - job_name: "postgres-exporter"

@@ -1,104 +1,144 @@
-.PHONY: help infra services all stop clean logs build-protos test
+# Voice Assistant Makefile
 
-# Help target
-help:
+# Variables
+PYTHON := python3.12
+PIP := pip
+DOCKER := docker
+COMPOSE := docker-compose
+
+# Default target
+.PHONY: help
+help: ## Show this help
 	@echo "Voice Assistant Makefile"
-	@echo "========================"
-	@echo "Available commands:"
-	@echo "  make help         - Show this help message"
-	@echo "  make infra        - Start infrastructure services (PostgreSQL, Redis, RabbitMQ)"
-	@echo "  make services     - Start application services (Gateway, ASR, NLU, etc.)"
-	@echo "  make all          - Start all services (infrastructure + application)"
-	@echo "  make stop         - Stop all running services"
-	@echo "  make clean        - Stop all services and remove volumes"
-	@echo "  make logs         - View logs from all services"
-	@echo "  make build        - Build Docker images (base and app)"
-	@echo "  make build-protos - Compile Protocol Buffer definitions"
-	@echo "  make test         - Run all tests"
-	@echo "  make test-unit    - Run unit tests only"
-	@echo "  make test-property - Run property-based tests only"
+	@echo ""
+	@echo "Usage:"
+	@grep -E '^[a-zA-Z_0-9%-]+:.*?## .*$$' $(word 1,$(MAKEFILE_LIST)) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-# Start infrastructure services only
-infra:
-	docker-compose -f docker-compose.infra.yml up -d
+# Development targets
+.PHONY: install
+install: ## Install project dependencies
+	$(PIP) install -r requirements.txt
 
-# Start application services only
-services:
-	docker-compose -f docker-compose.services.yml up -d
+.PHONY: install-dev
+install-dev: ## Install development dependencies
+	$(PIP) install -r requirements.txt
+	$(PIP) install -r src/services/nlu_service/test_requirements.txt
 
-# Start all services
-all:
-	docker-compose up -d
+.PHONY: run-gateway
+run-gateway: ## Run gateway service
+	$(PYTHON) -m src.services.gateway_service.main
 
-# Stop all services
-stop:
-	docker-compose down
-	docker-compose -f docker-compose.infra.yml down
-	docker-compose -f docker-compose.services.yml down
+.PHONY: run-asr
+run-asr: ## Run ASR service
+	$(PYTHON) -m src.services.asr_service.main
 
-# Clean up everything including volumes
-clean:
-	docker-compose down -v
-	docker-compose -f docker-compose.infra.yml down -v
-	docker-compose -f docker-compose.services.yml down -v
+.PHONY: run-nlu
+run-nlu: ## Run NLU service
+	$(PYTHON) -m src.services.nlu_service.main
 
-# View logs
-logs:
-	docker-compose logs -f
+.PHONY: run-tts
+run-tts: ## Run TTS service
+	$(PYTHON) -m src.services.tts_service.main
 
-# Build Docker images
-build:
-	docker build -f image.Dockerfile -t voice-assistant-base:latest .
-	docker build -t voice-assistant-app:latest .
+.PHONY: run-dialog
+run-dialog: ## Run dialog service
+	$(PYTHON) -m src.services.dialog_service.main
 
-# Rebuild and start services
-rebuild:
-	docker-compose down
-	docker build -f image.Dockerfile -t voice-assistant-base:latest .
-	docker build -t voice-assistant-app:latest .
-	docker-compose up -d
+.PHONY: run-storage
+run-storage: ## Run storage service
+	$(PYTHON) -m src.services.storage_service.main
 
-# Show status of running containers
-status:
-	docker-compose ps
-	docker-compose -f docker-compose.infra.yml ps
-	docker-compose -f docker-compose.services.yml ps
+.PHONY: run-notification
+run-notification: ## Run notification service
+	$(PYTHON) -m src.services.notification_service.main
 
-# Shell into a specific service
-shell-%:
-	docker-compose exec $* /bin/sh
+.PHONY: run-all
+run-all: ## Run all services (in development mode, requires multiple terminals)
+	@echo "Run each service in a separate terminal:"
+	@echo "make run-asr"
+	@echo "make run-nlu"
+	@echo "make run-tts"
+	@echo "make run-dialog"
+	@echo "make run-storage"
+	@echo "make run-notification"
+	@echo "make run-gateway"
 
-# Example: make shell-gateway-service
+# Docker targets
+.PHONY: docker-build
+docker-build: ## Build Docker image
+	$(DOCKER) build -t voice_assistant:latest .
 
-# Compile Protocol Buffer definitions
-build-protos:
-	python scripts/compile_protos.py
+.PHONY: docker-run-infra
+docker-run-infra: ## Run infrastructure services
+	cd infrastructure && $(COMPOSE) up -d
 
-# Run all tests
-test:
+.PHONY: docker-run-app
+docker-run-app: ## Run application services
+	$(COMPOSE) up -d
+
+.PHONY: docker-run-all
+docker-run-all: ## Run all services with Docker
+	$(COMPOSE) -f docker-compose.all.yml up -d
+
+.PHONY: docker-down
+docker-down: ## Stop all Docker containers
+	$(COMPOSE) down
+
+.PHONY: docker-down-infra
+docker-down-infra: ## Stop infrastructure services
+	cd infrastructure && $(COMPOSE) down
+
+.PHONY: docker-clean
+docker-clean: docker-down ## Clean Docker containers, networks, and volumes
+	$(COMPOSE) down -v
+	cd infrastructure && $(COMPOSE) down -v
+
+# Testing targets
+.PHONY: test
+test: ## Run all tests
 	pytest
 
-# Run unit tests only
-test-unit:
-	pytest -m "not property"
+.PHONY: test-cov
+test-cov: ## Run tests with coverage
+	pytest --cov=src --cov-report=html
 
-# Run property-based tests only
-test-property:
-	pytest -m property
+.PHONY: test-unit
+test-unit: ## Run unit tests
+	pytest -m unit
 
-# Install development dependencies
-install-dev:
-	pip install -e ".[dev]"
+.PHONY: test-integration
+test-integration: ## Run integration tests
+	pytest -m integration
 
-# Format code
-format:
-	black src/ tests/
+# Linting and formatting
+.PHONY: lint
+lint: ## Lint code with ruff
+	ruff check src/
 
-# Lint code
-lint:
-	flake8 src/ tests/
-	mypy src/
+.PHONY: format
+format: ## Format code with ruff
+	ruff check src/ --fix
+	ruff format src/
 
-# Type check
-typecheck:
-	mypy src/
+.PHONY: check-format
+check-format: ## Check code formatting
+	ruff check src/
+	ruff format src/ --check
+
+# Documentation
+.PHONY: docs
+docs: ## Generate documentation (placeholder)
+	@echo "Documentation generation would go here"
+
+# Cleanup
+.PHONY: clean
+clean: ## Clean temporary files
+	rm -rf __pycache__/
+	rm -rf */__pycache__/
+	rm -rf src/**/__pycache__/
+	rm -rf .pytest_cache/
+	rm -rf .coverage
+	rm -rf htmlcov/
+	rm -rf .mypy_cache/
+	rm -rf *.log
+	rm -rf logs/

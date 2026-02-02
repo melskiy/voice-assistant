@@ -8,7 +8,7 @@ Side effects: None (stateless operation).
 from typing import Optional, List
 
 from ...application.dto.intent_dto import IntentDTO
-from ...infrastructure.plugins.plugin_interface import NLUPlugin
+from ...application.ports.nlu_port import NLUPort
 
 
 class ExtractIntentUseCase:
@@ -20,28 +20,28 @@ class ExtractIntentUseCase:
     
     def __init__(
         self,
-        nlu_plugin: NLUPlugin,
+        nlu_port: NLUPort,
         confidence_threshold: float = 0.7
     ):
-        self.nlu_plugin = nlu_plugin
+        self.nlu_port = nlu_port
         self.confidence_threshold = confidence_threshold
     
     async def execute(self, text: str, session_id: str) -> Optional[IntentDTO]:
         """
         Extract intent from text.
-        
+
         Args:
             text: Input text to classify
             session_id: Session identifier
-            
+
         Returns:
             IntentDTO or None if extraction failed
         """
-        if not self.nlu_plugin:
+        if not self.nlu_port:
             return None
-        
+
         try:
-            intent_dto = await self.nlu_plugin.process_text(text)
+            intent_dto = await self.nlu_port.process_text(text)
             return intent_dto
         except Exception as e:
             return None

@@ -25,6 +25,7 @@ from voice_assistant.application.use_cases.dialog_use_cases import (
     GetDialogStateUseCase,
     ResetDialogUseCase
 )
+from voice_assistant.infrastructure.container.service_containers import create_dialog_service_container
 
 # Import error recovery if available
 try:
@@ -41,21 +42,22 @@ logger = logging.getLogger(__name__)
 
 async def serve():
     """Start the gRPC Dialog service."""
+    # Create Dialog service container
+    dialog_container = create_dialog_service_container()
+    container = dialog_container.get_container()
+
     # Create repository
     session_repo = InMemoryDialogSessionRepository()
-    
+
     # Create error recovery service if available
     error_recovery = ErrorRecoveryManager() if ERROR_RECOVERY_AVAILABLE else None
-    
-    # Create use cases
-    process_intent_use_case = ProcessIntentUseCase(
-        session_repo=session_repo,
-        error_recovery_service=error_recovery
-    )
-    handle_confirmation_use_case = HandleConfirmationUseCase(session_repo)
-    get_dialog_state_use_case = GetDialogStateUseCase(session_repo)
-    reset_dialog_use_case = ResetDialogUseCase(session_repo)
-    
+
+    # Create use cases using container
+    process_intent_use_case = dialog_container.create_process_intent_use_case(error_recovery_service=error_recovery)
+    handle_confirmation_use_case = dialog_container.create_handle_confirmation_use_case()
+    get_dialog_state_use_case = dialog_container.create_get_dialog_state_use_case()
+    reset_dialog_use_case = dialog_container.create_reset_dialog_use_case()
+
     # Create gRPC server
     server = grpc.aio.server(
         futures.ThreadPoolExecutor(max_workers=10),
@@ -64,7 +66,7 @@ async def serve():
             ('grpc.max_receive_message_length', 100 * 1024 * 1024),  # 100MB
         ]
     )
-    
+
     # Create servicer with use cases
     dialog_servicer = DialogServiceServicer(
         process_intent_use_case=process_intent_use_case,
@@ -72,7 +74,7 @@ async def serve():
         get_dialog_state_use_case=get_dialog_state_use_case,
         reset_dialog_use_case=reset_dialog_use_case
     )
-    
+
     # Add servicer to server
     dialog_pb2_grpc.add_DialogServiceServicer_to_server(dialog_servicer, server)
 
@@ -86,13 +88,13 @@ async def serve():
 
     # Listen on port 50053
     server.add_insecure_port('[::]:50053')
-    
+
     logger.info("Starting Dialog service on port 50053...")
-    
+
     try:
         await server.start()
         logger.info("Dialog service started successfully")
-        
+
         # Keep the server running
         await server.wait_for_termination()
     except KeyboardInterrupt:
