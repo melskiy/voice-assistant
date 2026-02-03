@@ -12,6 +12,7 @@ from voice_assistant.application.use_cases.nlu_use_cases import (
     ProcessConfidenceUseCase
 )
 from voice_assistant.infrastructure.container.service_containers import create_nlu_service_container
+from voice_assistant.infrastructure.plugins.plugin_manager import IoC_PluginManager
 
 try:
     from confidence_handler import ConfidenceHandler
@@ -30,8 +31,8 @@ def initialize_nlu_plugin(nlu_container):
     nlu_plugin = None
 
     try:
-        # Try to get NLU plugin from container
-        plugin_manager = nlu_container.resolve('plugin_manager')
+        # Get plugin manager directly from the service container
+        plugin_manager = nlu_container.plugin_manager
 
         # Get NLU plugin
         try:

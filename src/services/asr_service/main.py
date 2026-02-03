@@ -14,19 +14,20 @@ from voice_assistant.application.use_cases.asr_use_cases import (
 from voice_assistant.infrastructure.resilience.circuit_breaker import CircuitBreaker
 from voice_assistant.infrastructure.plugins.mock_asr_plugin import MockASRPlugin
 from voice_assistant.infrastructure.container.service_containers import create_asr_service_container
+from voice_assistant.infrastructure.plugins.plugin_manager import IoC_PluginManager
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def initialize_asr_plugins(container):
+def initialize_asr_plugins(asr_container):
     """Initialize ASR plugins using the dependency injection container."""
     primary_asr = None
     fallback_asr = None
 
     try:
-        # Try to get ASR plugins from container
-        plugin_manager = container.resolve('plugin_manager')
+        # Get plugin manager directly from the service container
+        plugin_manager = asr_container.plugin_manager
 
         # Get primary ASR plugin
         try:

@@ -1,15 +1,20 @@
 import importlib.util
 from pathlib import Path
 from typing import Any, Type, Dict, List, Optional
-from rodi import Container
+from rodi import Container as RoDIContainer
+from ..container.extended_container import ExtendedContainer
 
 from .plugin_contracts import IPluginRegistration, PluginMetadata
 
 
 class IoC_PluginManager:
 
-    def __init__(self, container: Container, plugins_directory: str = "src/plugins"):
-        self.container = container
+    def __init__(self, container: ExtendedContainer = None, plugins_directory: str = "src/plugins"):
+        if container is None:
+            self.container = ExtendedContainer()
+        else:
+            self.container = container
+
         # Convert to absolute path if it's relative
         plugins_path = Path(plugins_directory)
         if not plugins_path.is_absolute():
@@ -202,24 +207,48 @@ class IoC_PluginManager:
     ) -> None:
         """
         Reload a plugin with new configuration.
-        
+
         Args:
             plugin_id: Plugin identifier
             new_config: New configuration dictionary
-            
+
         Raises:
             ValueError: If plugin not found
         """
         if plugin_id not in self.registered_plugins:
             raise ValueError(f"Plugin {plugin_id} not found")
-        
+
         registration_class = self.registered_plugins[plugin_id]
-        
+
         # Re-register with new config
         registration_class.register(self.container, new_config)
         self.plugin_configs[plugin_id] = new_config
-        
+
         print(f"Reloaded plugin: {plugin_id}")
+
+    def get_asr_plugin(self):
+        """Get the registered ASR plugin from the container."""
+        from .plugin_contracts import IAsrService
+        try:
+            return self.container.resolve(IAsrService)
+        except (KeyError, ValueError):
+            return None
+
+    def get_nlu_plugin(self):
+        """Get the registered NLU plugin from the container."""
+        from .plugin_contracts import INluService
+        try:
+            return self.container.resolve(INluService)
+        except (KeyError, ValueError):
+            return None
+
+    def get_tts_plugin(self):
+        """Get the registered TTS plugin from the container."""
+        from .plugin_contracts import ITtsService
+        try:
+            return self.container.resolve(ITtsService)
+        except (KeyError, ValueError):
+            return None
 
 
 class PluginDiscovery:

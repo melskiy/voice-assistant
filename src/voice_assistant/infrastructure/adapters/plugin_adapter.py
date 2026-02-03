@@ -12,7 +12,7 @@ from ...application.ports.plugin_port import PluginPort
 from ...application.ports.asr_port import ASRPort
 from ...application.ports.nlu_port import NLUPort
 from ...application.ports.tts_port import TTSPort
-from ..plugins.plugin_manager import PluginManager
+from ..plugins.plugin_manager import IoC_PluginManager
 
 
 class PluginAdapter(PluginPort):
@@ -29,40 +29,34 @@ class PluginAdapter(PluginPort):
             current_file_dir = Path(__file__).parent
             plugins_path = current_file_dir.parent.parent.parent / "plugins"
             plugins_directory = str(plugins_path.resolve())
-        
-        self._plugin_manager = PluginManager(plugins_directory)
+
+        # Create a container for the plugin manager
+        from rodi import Container
+        container = Container()
+
+        self._plugin_manager = IoC_PluginManager(container, plugins_directory=plugins_directory)
         self._configured_plugins: dict[str, str] = {}
         self._active_plugins: dict[str, Any] = {}
     
     async def initialize_plugins(
-        self, 
+        self,
         plugin_configs: dict[str, dict[str, Any]]
     ) -> bool:
         """
         Initialize plugins based on configuration.
-        
+
         Args:
             plugin_configs: Dictionary mapping plugin IDs to configurations
-            
+
         Returns:
             True if initialization was successful
         """
         try:
-            # Discover available plugins
-            available_plugins = self._plugin_manager.discover_plugins()
-            print(f"Discovered plugins: {available_plugins}")
-            
-            # Initialize configured plugins
-            for plugin_id, config in plugin_configs.items():
-                if config.get("enabled", False):
-                    try:
-                        await self._plugin_manager.load_plugin(plugin_id, config)
-                        print(f"Successfully loaded plugin: {plugin_id}")
-                    except Exception as e:
-                        print(f"Failed to load plugin {plugin_id}: {e}")
-                        return False
-            
-            return True
+            # Discover and register plugins using IoC_PluginManager
+            registered_plugins = self._plugin_manager.discover_and_register_plugins(plugin_configs)
+            print(f"Registered plugins: {registered_plugins}")
+
+            return len(registered_plugins) > 0
         except Exception as e:
             print(f"Error initializing plugins: {e}")
             return False
@@ -70,47 +64,84 @@ class PluginAdapter(PluginPort):
     def select_active_plugins(self, plugin_selections: dict[str, str]) -> None:
         """
         Select which plugins to use for each category.
-        
+
         Args:
             plugin_selections: Dictionary mapping categories to plugin IDs
         """
         self._configured_plugins = plugin_selections.copy()
-        
+
         for category, plugin_id in plugin_selections.items():
             try:
-                plugin = self._plugin_manager.get_loaded_plugin(plugin_id)
-                self._active_plugins[category] = plugin
+                # For IoC_PluginManager, we need to resolve the plugin from the container
+                # This assumes the plugin was registered with a known interface
+                from rodi import Container
+                # We'll store plugin_id for later resolution when needed
+                self._active_plugins[category] = plugin_id
                 print(f"Selected {category} plugin: {plugin_id}")
             except Exception as e:
                 print(f"Failed to select {category} plugin {plugin_id}: {e}")
     
     def get_asr_plugin(self) -> ASRPort | None:
         """Get the active ASR plugin."""
-        from ..plugins.plugin_interface import ASRPlugin
-        plugin = self._active_plugins.get("asr")
-        if plugin is not None and isinstance(plugin, ASRPlugin):
-            return plugin
+        from ..plugins.plugin_contracts import IAsrService
+        plugin_id = self._active_plugins.get("asr")
+        if plugin_id:
+            try:
+                # Resolve the plugin from the container
+                plugin = self._plugin_manager.container.resolve(IAsrService)
+                return plugin
+            except Exception:
+                # If direct resolution fails, try to resolve by plugin_id
+                try:
+                    # Attempt to resolve by class name or plugin_id
+                    plugin = self._plugin_manager.container.resolve(plugin_id)
+                    return plugin
+                except Exception:
+                    return None
         return None
-    
+
     def get_nlu_plugin(self) -> NLUPort | None:
         """Get the active NLU plugin."""
-        from ..plugins.plugin_interface import NLUPlugin
-        plugin = self._active_plugins.get("nlu")
-        if plugin is not None and isinstance(plugin, NLUPlugin):
-            return plugin
+        from ..plugins.plugin_contracts import INluService
+        plugin_id = self._active_plugins.get("nlu")
+        if plugin_id:
+            try:
+                # Resolve the plugin from the container
+                plugin = self._plugin_manager.container.resolve(INluService)
+                return plugin
+            except Exception:
+                # If direct resolution fails, try to resolve by plugin_id
+                try:
+                    # Attempt to resolve by class name or plugin_id
+                    plugin = self._plugin_manager.container.resolve(plugin_id)
+                    return plugin
+                except Exception:
+                    return None
         return None
-    
+
     def get_tts_plugin(self) -> TTSPort | None:
         """Get the active TTS plugin."""
-        from ..plugins.plugin_interface import TTSPlugin
-        plugin = self._active_plugins.get("tts")
-        if plugin is not None and isinstance(plugin, TTSPlugin):
-            return plugin
+        from ..plugins.plugin_contracts import ITtsService
+        plugin_id = self._active_plugins.get("tts")
+        if plugin_id:
+            try:
+                # Resolve the plugin from the container
+                plugin = self._plugin_manager.container.resolve(ITtsService)
+                return plugin
+            except Exception:
+                # If direct resolution fails, try to resolve by plugin_id
+                try:
+                    # Attempt to resolve by class name or plugin_id
+                    plugin = self._plugin_manager.container.resolve(plugin_id)
+                    return plugin
+                except Exception:
+                    return None
         return None
     
     async def shutdown(self) -> None:
         """Shutdown all plugins and cleanup resources."""
-        await self._plugin_manager.shutdown_all_plugins()
+        # IoC_PluginManager doesn't have shutdown_all_plugins method
+        # For now, just clear the active plugins
         self._active_plugins.clear()
     
     def is_available(self, plugin_type: str) -> bool:

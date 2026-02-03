@@ -12,6 +12,7 @@ import os
 
 from voice_assistant.interfaces.container import Config as AppConfig
 from voice_assistant.infrastructure.plugins.plugin_manager import IoC_PluginManager
+from voice_assistant.infrastructure.container.extended_container import ExtendedContainer
 from voice_assistant.application.use_cases.tts_use_cases import SynthesizeSpeechUseCase, GetAvailableVoicesUseCase
 from voice_assistant.application.use_cases.nlu_use_cases import ExtractIntentUseCase, ProcessConfidenceUseCase
 from voice_assistant.application.use_cases.asr_use_cases import TranscribeAudioUseCase, ManageASRSessionUseCase
@@ -32,15 +33,15 @@ class ASRServiceContainer:
     """
 
     def __init__(self):
-        self.container = Container()
+        self.container = ExtendedContainer()
         self.app_config = AppConfig()
 
         # Register configuration
-        self.container.add_instance(AppConfig, self.app_config)
+        self.container.add_instance(AppConfig)
 
         # Initialize plugin manager with correct plugins directory
         self.plugin_manager = IoC_PluginManager(self.container, plugins_directory="src/plugins")
-        self.container.add_instance(IoC_PluginManager, self.plugin_manager)
+        self.container.add_instance(self.plugin_manager)
 
         # Register ASR-specific plugins
         self._register_asr_plugins()
@@ -111,15 +112,15 @@ class NLUServiceContainer:
     """
 
     def __init__(self):
-        self.container = Container()
+        self.container = ExtendedContainer()
         self.app_config = AppConfig()
 
         # Register configuration
-        self.container.add_instance(AppConfig, self.app_config)
+        self.container.add_instance(AppConfig)
 
         # Initialize plugin manager with correct plugins directory
         self.plugin_manager = IoC_PluginManager(self.container, plugins_directory="src/plugins")
-        self.container.add_instance(IoC_PluginManager, self.plugin_manager)
+        self.container.add_instance(self.plugin_manager)
 
         # Register NLU-specific plugins
         self._register_nlu_plugins()
@@ -174,15 +175,15 @@ class TTSServiceContainer:
     """
 
     def __init__(self):
-        self.container = Container()
+        self.container = ExtendedContainer()
         self.app_config = AppConfig()
 
         # Register configuration
-        self.container.add_instance(AppConfig, self.app_config)
+        self.container.add_instance(AppConfig)
 
         # Initialize plugin manager with correct plugins directory
         self.plugin_manager = IoC_PluginManager(self.container, plugins_directory="src/plugins")
-        self.container.add_instance(IoC_PluginManager, self.plugin_manager)
+        self.container.add_instance(self.plugin_manager)
 
         # Register TTS-specific plugins
         self._register_tts_plugins()
@@ -235,15 +236,15 @@ class DialogServiceContainer:
     """
 
     def __init__(self):
-        self.container = Container()
+        self.container = ExtendedContainer()
         self.app_config = AppConfig()
 
         # Register configuration
-        self.container.add_instance(AppConfig, self.app_config)
+        self.container.add_instance(AppConfig)
 
         # Initialize plugin manager with correct plugins directory
         self.plugin_manager = IoC_PluginManager(self.container, plugins_directory="src/plugins")
-        self.container.add_instance(IoC_PluginManager, self.plugin_manager)
+        self.container.add_instance(self.plugin_manager)
 
         # Register Dialog-specific plugins
         self._register_dialog_plugins()
@@ -311,15 +312,15 @@ class GatewayServiceContainer:
     """
 
     def __init__(self):
-        self.container = Container()
+        self.container = ExtendedContainer()
         self.app_config = AppConfig()
 
         # Register configuration
-        self.container.add_instance(AppConfig, self.app_config)
+        self.container.add_instance(AppConfig)
 
         # Initialize plugin manager with correct plugins directory
         self.plugin_manager = IoC_PluginManager(self.container, plugins_directory="src/plugins")
-        self.container.add_instance(IoC_PluginManager, self.plugin_manager)
+        self.container.add_instance(self.plugin_manager)
 
         # Register Gateway-specific plugins
         self._register_gateway_plugins()
@@ -359,15 +360,15 @@ class NotificationServiceContainer:
     """
 
     def __init__(self):
-        self.container = Container()
+        self.container = ExtendedContainer()
         self.app_config = AppConfig()
 
         # Register configuration
-        self.container.add_instance(AppConfig, self.app_config)
+        self.container.add_instance(AppConfig)
 
         # Initialize plugin manager with correct plugins directory
         self.plugin_manager = IoC_PluginManager(self.container, plugins_directory="src/plugins")
-        self.container.add_instance(IoC_PluginManager, self.plugin_manager)
+        self.container.add_instance(self.plugin_manager)
 
         # Register Notification-specific plugins
         self._register_notification_plugins()
@@ -407,15 +408,15 @@ class StorageServiceContainer:
     """
 
     def __init__(self):
-        self.container = Container()
+        self.container = ExtendedContainer()
         self.app_config = AppConfig()
 
         # Register configuration
-        self.container.add_instance(AppConfig, self.app_config)
+        self.container.add_instance(AppConfig)
 
         # Initialize plugin manager with correct plugins directory
         self.plugin_manager = IoC_PluginManager(self.container, plugins_directory="src/plugins")
-        self.container.add_instance(IoC_PluginManager, self.plugin_manager)
+        self.container.add_instance(self.plugin_manager)
 
         # Register Storage-specific plugins
         self._register_storage_plugins()

@@ -25,6 +25,7 @@ from voice_assistant.application.use_cases.tts_use_cases import (
 from voice_assistant.domain.services.text_normalizer import RussianTextNormalizer
 from voice_assistant.infrastructure.plugins.plugin_interface import TTSPlugin
 from voice_assistant.infrastructure.container.service_containers import create_tts_service_container
+from voice_assistant.infrastructure.plugins.plugin_manager import IoC_PluginManager
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -36,8 +37,8 @@ def initialize_tts_plugin(tts_container):
     tts_plugin = None
 
     try:
-        # Try to get TTS plugin from container
-        plugin_manager = tts_container.resolve('plugin_manager')
+        # Get plugin manager directly from the service container
+        plugin_manager = tts_container.plugin_manager
 
         # Get TTS plugin
         try:
