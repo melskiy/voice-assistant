@@ -18,24 +18,18 @@ Usage:
 """
 import logging
 from contextlib import asynccontextmanager
-
+import os
 import redis.asyncio as redis
 from fastapi import FastAPI
 
-# Import view registry and viewsets (auto-registered via decorators)
 from voice_assistant.presentation.views import ViewRegistry
 
-# Import services
 from voice_assistant.application.services.audio_stream_manager import AudioStreamManager
 from voice_assistant.infrastructure.cache.session_cache import SessionCache
 from voice_assistant.interfaces.container import Config
 from voice_assistant.infrastructure.container.service_containers import create_gateway_service_container
 
-# Note: PluginService is intentionally NOT imported here.
-# Plugins are loaded by their respective microservices (ASR/NLU/TTS),
-# not by the Gateway Service which acts as a lightweight API gateway.
 
-# Set up logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'

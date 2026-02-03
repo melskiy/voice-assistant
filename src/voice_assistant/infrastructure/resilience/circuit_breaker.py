@@ -1,8 +1,3 @@
-"""
-Circuit Breaker pattern implementation.
-
-Used to handle failures in external services gracefully.
-"""
 import time
 import logging
 from enum import Enum
@@ -13,7 +8,6 @@ logger = logging.getLogger(__name__)
 
 
 class CircuitBreakerState(Enum):
-    """Circuit breaker states."""
     CLOSED = "closed"       # Normal operation
     OPEN = "open"          # Failing, rejecting requests
     HALF_OPEN = "half_open"  # Testing if service recovered
@@ -21,14 +15,6 @@ class CircuitBreakerState(Enum):
 
 @dataclass
 class CircuitBreakerConfig:
-    """Configuration for circuit breaker.
-    
-    Attributes:
-        failure_threshold: Number of failures before opening circuit
-        timeout_seconds: Time in seconds before attempting to close circuit
-        required_successes: Number of successes in half-open state to close circuit
-        name: Identifier for the circuit breaker
-    """
     failure_threshold: int = 5
     timeout_seconds: float = 30.0
     required_successes: int = 2

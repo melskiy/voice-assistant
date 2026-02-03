@@ -29,17 +29,25 @@ def initialize_asr_plugins(container):
         plugin_manager = container.resolve('plugin_manager')
 
         # Get primary ASR plugin
-        primary_asr = plugin_manager.get_asr_plugin()
-        if primary_asr:
-            logger.info(f"Primary ASR plugin loaded: {type(primary_asr).__name__}")
-        else:
-            logger.warning("No primary ASR plugin found, using mock")
+        try:
+            primary_asr = plugin_manager.get_asr_plugin()
+            if primary_asr:
+                logger.info(f"Primary ASR plugin loaded: {type(primary_asr).__name__}")
+            else:
+                logger.warning("No primary ASR plugin found, using mock")
+                primary_asr = MockASRPlugin()
+        except Exception as e:
+            logger.warning(f"Could not get ASR plugin from plugin manager: {e}")
             primary_asr = MockASRPlugin()
 
         # Get fallback ASR plugin if available
         # For now, using mock as fallback if no other plugin is available
-        fallback_asr = MockASRPlugin()
-        logger.info("Fallback ASR plugin loaded: MockASRPlugin")
+        try:
+            fallback_asr = MockASRPlugin()
+            logger.info("Fallback ASR plugin loaded: MockASRPlugin")
+        except Exception as e:
+            logger.warning(f"Could not initialize fallback ASR plugin: {e}")
+            fallback_asr = MockASRPlugin()
 
     except Exception as e:
         logger.warning(f"Failed to initialize ASR plugins from container: {e}")
@@ -91,17 +99,18 @@ async def serve():
             name="Fallback ASR"
         )
 
-    # Create use cases using container
-    # Get the ASR plugin from the container and treat it as an ASRPort
-    primary_asr = asr_container.resolve('plugin_manager').get_asr_plugin()
-
-    transcribe_use_case = asr_container.create_transcribe_use_case(
+    # Create use cases using the plugins we loaded
+    transcribe_use_case = TranscribeAudioUseCase(
         primary_asr=primary_asr,
+        fallback_asr=fallback_asr,
+        primary_circuit_breaker=primary_circuit_breaker,
+        fallback_circuit_breaker=fallback_circuit_breaker,
         confidence_threshold=float(os.getenv("ASR_CONFIDENCE_THRESHOLD", "0.7"))
     )
 
-    manage_session_use_case = asr_container.create_manage_session_use_case(
-        primary_asr=primary_asr
+    manage_session_use_case = ManageASRSessionUseCase(
+        primary_asr=primary_asr,
+        fallback_asr=fallback_asr
     )
 
     # Create gRPC server

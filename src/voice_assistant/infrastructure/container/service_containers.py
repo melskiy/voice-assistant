@@ -38,8 +38,8 @@ class ASRServiceContainer:
         # Register configuration
         self.container.add_instance(AppConfig, self.app_config)
 
-        # Initialize plugin manager
-        self.plugin_manager = IoC_PluginManager(self.container)
+        # Initialize plugin manager with correct plugins directory
+        self.plugin_manager = IoC_PluginManager(self.container, plugins_directory="src/plugins")
         self.container.add_instance(IoC_PluginManager, self.plugin_manager)
 
         # Register ASR-specific plugins
@@ -117,8 +117,8 @@ class NLUServiceContainer:
         # Register configuration
         self.container.add_instance(AppConfig, self.app_config)
 
-        # Initialize plugin manager
-        self.plugin_manager = IoC_PluginManager(self.container)
+        # Initialize plugin manager with correct plugins directory
+        self.plugin_manager = IoC_PluginManager(self.container, plugins_directory="src/plugins")
         self.container.add_instance(IoC_PluginManager, self.plugin_manager)
 
         # Register NLU-specific plugins
@@ -180,8 +180,8 @@ class TTSServiceContainer:
         # Register configuration
         self.container.add_instance(AppConfig, self.app_config)
 
-        # Initialize plugin manager
-        self.plugin_manager = IoC_PluginManager(self.container)
+        # Initialize plugin manager with correct plugins directory
+        self.plugin_manager = IoC_PluginManager(self.container, plugins_directory="src/plugins")
         self.container.add_instance(IoC_PluginManager, self.plugin_manager)
 
         # Register TTS-specific plugins
@@ -241,8 +241,8 @@ class DialogServiceContainer:
         # Register configuration
         self.container.add_instance(AppConfig, self.app_config)
 
-        # Initialize plugin manager
-        self.plugin_manager = IoC_PluginManager(self.container)
+        # Initialize plugin manager with correct plugins directory
+        self.plugin_manager = IoC_PluginManager(self.container, plugins_directory="src/plugins")
         self.container.add_instance(IoC_PluginManager, self.plugin_manager)
 
         # Register Dialog-specific plugins
@@ -317,8 +317,8 @@ class GatewayServiceContainer:
         # Register configuration
         self.container.add_instance(AppConfig, self.app_config)
 
-        # Initialize plugin manager
-        self.plugin_manager = IoC_PluginManager(self.container)
+        # Initialize plugin manager with correct plugins directory
+        self.plugin_manager = IoC_PluginManager(self.container, plugins_directory="src/plugins")
         self.container.add_instance(IoC_PluginManager, self.plugin_manager)
 
         # Register Gateway-specific plugins
@@ -365,8 +365,8 @@ class NotificationServiceContainer:
         # Register configuration
         self.container.add_instance(AppConfig, self.app_config)
 
-        # Initialize plugin manager
-        self.plugin_manager = IoC_PluginManager(self.container)
+        # Initialize plugin manager with correct plugins directory
+        self.plugin_manager = IoC_PluginManager(self.container, plugins_directory="src/plugins")
         self.container.add_instance(IoC_PluginManager, self.plugin_manager)
 
         # Register Notification-specific plugins
@@ -413,8 +413,8 @@ class StorageServiceContainer:
         # Register configuration
         self.container.add_instance(AppConfig, self.app_config)
 
-        # Initialize plugin manager
-        self.plugin_manager = IoC_PluginManager(self.container)
+        # Initialize plugin manager with correct plugins directory
+        self.plugin_manager = IoC_PluginManager(self.container, plugins_directory="src/plugins")
         self.container.add_instance(IoC_PluginManager, self.plugin_manager)
 
         # Register Storage-specific plugins

@@ -1,17 +1,3 @@
-"""
-Service Discovery Client
-
-Business concept: Client for discovering service endpoints from the
-service registry with load balancing and failover support.
-
-Constraints:
-- Caching of discovered endpoints
-- Automatic failover to healthy instances
-- Load balancing strategies
-- Integration with resilient service client
-"""
-
-import asyncio
 import random
 from typing import Dict, List, Optional, Callable, Any
 from dataclasses import dataclass
@@ -19,7 +5,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 import logging
 
-from .service_registry import ServiceRegistry, ServiceInstance, ServiceStatus, get_service_registry
+from .service_registry import ServiceRegistry, ServiceStatus, get_service_registry
+from ...interfaces.container import Config
 
 logger = logging.getLogger(__name__)
 
@@ -380,7 +367,7 @@ class VoiceAssistantDiscovery:
     @classmethod
     def get_default_address(cls, service_name: str, host: str = None) -> str:
         if host is None:
-            from ....interfaces.container import Config
+
             config = Config()
             # Use the appropriate host based on service name
             if service_name in ['asr', 'nlu', 'dialog', 'tts', 'storage', 'notification']:

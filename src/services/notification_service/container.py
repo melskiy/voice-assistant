@@ -10,15 +10,11 @@ from typing import Optional
 
 from rodi import Container
 
-from ...voice_assistant.domain.repositories.notification_repository import INotificationRepository
-from ...voice_assistant.infrastructure.messaging.rabbitmq_client import RabbitMQClient, RabbitMQConfig
-from ...voice_assistant.infrastructure.external.telegram_client import TelegramClient, TelegramConfig
-from ...voice_assistant.infrastructure.persistence.database_connection import (
-    DatabaseConnectionPool, DatabaseConfig
-)
-from ...voice_assistant.infrastructure.persistence.postgres_notification_repository import (
+from voice_assistant.domain.repositories import INotificationRepository
+from voice_assistant.infrastructure.external import TelegramClient, TelegramConfig
+from voice_assistant.infrastructure.messaging import RabbitMQClient, RabbitMQConfig
+from voice_assistant.infrastructure.persistence import DatabaseConnectionPool, DatabaseConfig, \
     PostgresNotificationRepository
-)
 
 logger = logging.getLogger(__name__)
 
@@ -65,14 +61,14 @@ class NotificationServiceContainer:
         self._db_pool = DatabaseConnectionPool(db_config)
         self._container.add_singleton(
             DatabaseConnectionPool,
-            lambda: self._db_pool
+            self._db_pool
         )
         
         # Register RabbitMQ client as singleton
         self._rabbitmq_client = RabbitMQClient(rabbitmq_config)
         self._container.add_singleton(
             RabbitMQClient,
-            lambda: self._rabbitmq_client
+            self._rabbitmq_client
         )
         
         # Register Telegram client as singleton (if token is provided)
@@ -80,13 +76,13 @@ class NotificationServiceContainer:
             self._telegram_client = TelegramClient(telegram_config)
             self._container.add_singleton(
                 TelegramClient,
-                lambda: self._telegram_client
+                self._telegram_client
             )
         
         # Register notification repository
         self._container.add_singleton(
             INotificationRepository,
-            lambda: PostgresNotificationRepository(self._db_pool)
+            PostgresNotificationRepository(self._db_pool)
         )
         
         self._is_configured = True

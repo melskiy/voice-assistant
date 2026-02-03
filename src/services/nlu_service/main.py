@@ -34,11 +34,14 @@ def initialize_nlu_plugin(nlu_container):
         plugin_manager = nlu_container.resolve('plugin_manager')
 
         # Get NLU plugin
-        nlu_plugin = plugin_manager.get_nlu_plugin()
-        if nlu_plugin:
-            logger.info(f"NLU plugin loaded: {type(nlu_plugin).__name__}")
-        else:
-            logger.warning("No NLU plugin found in container")
+        try:
+            nlu_plugin = plugin_manager.get_nlu_plugin()
+            if nlu_plugin:
+                logger.info(f"NLU plugin loaded: {type(nlu_plugin).__name__}")
+            else:
+                logger.warning("No NLU plugin found in container")
+        except Exception as e:
+            logger.error(f"Could not get NLU plugin from plugin manager: {e}")
 
     except Exception as e:
         logger.error(f"Failed to initialize NLU plugin from container: {e}")
@@ -86,12 +89,9 @@ async def serve():
         logger.error("No NLU plugin available, cannot start service")
         return
 
-    # Create use cases using container
-    # Get the NLU plugin from the container and treat it as an NLUPort
-    nlu_plugin = nlu_container_obj.resolve('plugin_manager').get_nlu_plugin()
-
-    extract_intent_use_case = nlu_container_obj.create_extract_intent_use_case(
-        nlu_port=nlu_plugin,
+    # Create use cases using the plugin we loaded
+    extract_intent_use_case = ExtractIntentUseCase(
+        nlu_plugin=nlu_plugin,
         confidence_threshold=0.7
     )
 

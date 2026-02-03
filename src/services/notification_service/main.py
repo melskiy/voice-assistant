@@ -19,11 +19,9 @@ import grpc
 from grpc import aio
 from grpc_reflection.v1alpha import reflection
 
-# Add the project root to the path to import voice_assistant modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+from services.notification_service.container import NotificationServiceContainer
+from services.notification_service.notification_worker import NotificationWorker
 
-from .container import get_container, NotificationServiceContainer
-from .notification_worker import NotificationWorker
 from voice_assistant.infrastructure.container.service_containers import create_notification_service_container
 
 # Set up logging

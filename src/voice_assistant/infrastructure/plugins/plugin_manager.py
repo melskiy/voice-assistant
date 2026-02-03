@@ -1,12 +1,4 @@
-"""
-Plugin manager for the voice assistant.
-
-This module provides the IoC_PluginManager class which discovers and registers
-plugins using the new IPluginRegistration interface.
-"""
-
 import importlib.util
-import os
 from pathlib import Path
 from typing import Any, Type, Dict, List, Optional
 from rodi import Container
@@ -15,24 +7,19 @@ from .plugin_contracts import IPluginRegistration, PluginMetadata
 
 
 class IoC_PluginManager:
-    """
-    Manages loading and registration of plugins with IoC container.
-    
-    This manager discovers plugins by looking for `registration.py` files
-    in plugin directories and calling the `register()` method of classes
-    implementing IPluginRegistration.
-    """
-    
+
     def __init__(self, container: Container, plugins_directory: str = "src/plugins"):
-        """
-        Initialize plugin manager.
-        
-        Args:
-            container: The IoC container to register dependencies in
-            plugins_directory: Path to the plugins directory
-        """
         self.container = container
-        self.plugins_directory = Path(plugins_directory)
+        # Convert to absolute path if it's relative
+        plugins_path = Path(plugins_directory)
+        if not plugins_path.is_absolute():
+            # Get the project root (assuming this file is in src/voice_assistant/infrastructure/plugins/)
+            current_file_dir = Path(__file__).parent
+            project_root = current_file_dir.parent.parent.parent.parent  # ../../../../
+            self.plugins_directory = project_root / plugins_directory
+        else:
+            self.plugins_directory = plugins_path
+
         self.registered_plugins: Dict[str, Type[IPluginRegistration]] = {}
         self.plugin_configs: Dict[str, Dict[str, Any]] = {}
         self.plugin_metadata: Dict[str, PluginMetadata] = {}
@@ -43,19 +30,24 @@ class IoC_PluginManager:
     ) -> List[str]:
         """
         Discover available plugins and register them in IoC container.
-        
+
         Args:
             plugin_configs: Dictionary mapping plugin IDs to their configurations
-            
+
         Returns:
             List of registered plugin IDs
         """
         registered_plugin_ids = []
-        
+
+        # Check if plugins directory exists
+        if not self.plugins_directory.exists():
+            print(f"Plugins directory does not exist: {self.plugins_directory}")
+            return registered_plugin_ids
+
         for plugin_dir in self.plugins_directory.iterdir():
             if not plugin_dir.is_dir():
                 continue
-            
+
             # Check for registration.py (new architecture)
             registration_file = plugin_dir / "registration.py"
             if registration_file.exists():
@@ -68,7 +60,7 @@ class IoC_PluginManager:
                 except Exception as e:
                     print(f"Failed to load plugin from {plugin_dir}: {e}")
                     continue
-        
+
         return registered_plugin_ids
     
     def _register_from_registration_file(

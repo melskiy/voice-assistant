@@ -11,12 +11,10 @@ import logging
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from ...voice_assistant.domain.entities.notification import (
-    Notification, NotificationStatus, NotificationChannel
-)
-from ...voice_assistant.domain.repositories.notification_repository import INotificationRepository
-from ...voice_assistant.infrastructure.messaging.rabbitmq_client import RabbitMQClient
-from ...voice_assistant.infrastructure.external.telegram_client import (
+from voice_assistant.domain.entities import Notification, NotificationChannel
+from voice_assistant.domain.repositories.notification_repository import INotificationRepository
+from voice_assistant.infrastructure.messaging.rabbitmq_client import RabbitMQClient
+from voice_assistant.infrastructure.external.telegram_client import (
     TelegramClient, TelegramError, TelegramAPIError
 )
 

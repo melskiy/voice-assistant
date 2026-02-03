@@ -228,7 +228,7 @@ class RabbitMQClient:
     async def consume(
         self,
         queue_name: str,
-        callback: Callable[[Dict[str, Any]], asyncio.Coroutine],
+        callback: Callable[[Dict[str, Any]], asyncio.coroutines],
         routing_keys: Optional[List[str]] = None,
         durable: bool = True,
         auto_ack: bool = False

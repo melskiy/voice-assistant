@@ -11,6 +11,7 @@ from datetime import datetime
 
 from voice_assistant.domain.value_objects.audio_chunk import AudioChunk
 from voice_assistant.interfaces.container import Config
+from voice_assistant.infrastructure.grpc.generated import audio_pb2, audio_pb2_grpc
 
 logger = logging.getLogger(__name__)
 

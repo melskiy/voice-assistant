@@ -15,6 +15,8 @@ from uuid import UUID
 import sys
 import os
 
+from services.notification_service.container import get_container
+
 # Add the project root to the path to import voice_assistant modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
@@ -25,8 +27,8 @@ from voice_assistant.domain.repositories.reminder_repository import IReminderRep
 from voice_assistant.domain.entities.shopping_list import ShoppingList, ShoppingListItem
 from voice_assistant.domain.entities.reminder import Reminder
 from voice_assistant.domain.value_objects.priority import Priority
-from .container import get_container, StorageServiceContainer
-from voice_assistant.infrastructure.container.service_containers import create_storage_service_container
+from voice_assistant.infrastructure.container.service_containers import create_storage_service_container, \
+    StorageServiceContainer
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)

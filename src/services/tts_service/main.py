@@ -40,11 +40,14 @@ def initialize_tts_plugin(tts_container):
         plugin_manager = tts_container.resolve('plugin_manager')
 
         # Get TTS plugin
-        tts_plugin = plugin_manager.get_tts_plugin()
-        if tts_plugin:
-            logger.info(f"TTS plugin loaded: {type(tts_plugin).__name__}")
-        else:
-            logger.warning("No TTS plugin found in container")
+        try:
+            tts_plugin = plugin_manager.get_tts_plugin()
+            if tts_plugin:
+                logger.info(f"TTS plugin loaded: {type(tts_plugin).__name__}")
+            else:
+                logger.warning("No TTS plugin found in container")
+        except Exception as e:
+            logger.error(f"Could not get TTS plugin from plugin manager: {e}")
 
     except Exception as e:
         logger.error(f"Failed to initialize TTS plugin from container: {e}")
@@ -93,12 +96,12 @@ async def serve():
         logger.error("No TTS plugin available, cannot start service")
         return
 
-    # Create use cases using container
-    # Get the TTS plugin from the container and treat it as an TTSPort
-    tts_plugin = tts_container_obj.resolve('plugin_manager').get_tts_plugin()
-
-    synthesize_use_case = tts_container_obj.create_synthesize_speech_use_case(tts_port=tts_plugin)
-    get_voices_use_case = tts_container_obj.create_get_available_voices_use_case()
+    # Create use cases using the plugin we loaded
+    synthesize_use_case = SynthesizeSpeechUseCase(
+        tts_plugin=tts_plugin,
+        text_normalizer=RussianTextNormalizer()
+    )
+    get_voices_use_case = GetAvailableVoicesUseCase()
 
     # Create gRPC server
     server = grpc.aio.server(
