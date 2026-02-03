@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package voice_assistant.audio;
+
+// Audio streaming messages
+message AudioChunk {
+    bytes audio_data = 1;
+    int32 sample_rate = 2;
+    int32 channels = 3;
+    int64 timestamp_ms = 4;
+    int32 sequence_number = 5;
+    int32 duration_ms = 6;
+    bool is_final = 7;
+}
+
+message ASRResult {
+    string text = 1;
+    float confidence = 2;
+    bool is_final = 3;
+    int64 timestamp_ms = 4;
+    string session_id = 5;
+}
+
+message ASRRequest {
+    string session_id = 1;
+    string language = 2;
+    map<string, string> config = 3;
+}
+
+// ASR Service
+service ASRService {
+    rpc ProcessAudioStream(stream AudioChunk) returns (stream ASRResult);
+    rpc StartSession(ASRRequest) returns (SessionResponse);
+    rpc EndSession(SessionRequest) returns (SessionResponse);
+}
+
+// Common session messages
+message SessionRequest {
+    string session_id = 1;
+}
+
+message SessionResponse {
+    string session_id = 1;
+    bool success = 2;
+    string message = 3;
+}

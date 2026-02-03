@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: ${POSTGRES_IMAGE}:${POSTGRES_VERSION}
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ${INIT_DB_SCRIPT}:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "${POSTGRES_HOST_PORT}:${POSTGRES_CONTAINER_PORT}"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: ${HEALTHCHECK_INTERVAL}
+      timeout: ${HEALTHCHECK_TIMEOUT}
+      retries: ${HEALTHCHECK_RETRIES}
+
+  redis:
+    image: ${REDIS_IMAGE}:${REDIS_VERSION}
+    ports:
+      - "${REDIS_HOST_PORT}:${REDIS_CONTAINER_PORT}"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: ${HEALTHCHECK_INTERVAL}
+      timeout: ${HEALTHCHECK_TIMEOUT}
+      retries: ${HEALTHCHECK_RETRIES}
+
+  rabbitmq:
+    image: ${RABBITMQ_IMAGE}:${RABBITMQ_VERSION}
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    ports:
+      - "${RABBITMQ_HOST_PORT}:${RABBITMQ_CONTAINER_PORT}"
+      - "${RABBITMQ_MANAGEMENT_HOST_PORT}:${RABBITMQ_MANAGEMENT_PORT}"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: ${HEALTHCHECK_INTERVAL}
+      timeout: ${HEALTHCHECK_TIMEOUT}
+      retries: ${HEALTHCHECK_RETRIES}
+
+  prometheus:
+    image: ${PROMETHEUS_IMAGE}:${PROMETHEUS_VERSION}
+    ports:
+      - "${PROMETHEUS_HOST_PORT}:${PROMETHEUS_CONTAINER_PORT}"
+    volumes:
+      - ${PROMETHEUS_CONFIG_FILE}:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+
+  grafana:
+    image: ${GRAFANA_IMAGE}:${GRAFANA_VERSION}
+    ports:
+      - "${GRAFANA_HOST_PORT}:${GRAFANA_CONTAINER_PORT}"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  grafana_data:
+
+networks:
+  default:
+    driver: bridge
+    name: ${NETWORK_NAME}

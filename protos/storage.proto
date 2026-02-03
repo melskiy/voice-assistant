@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package voice_assistant.storage;
+
+// Storage service for managing shopping lists and reminders
+service StorageService {
+  // Shopping List methods
+  rpc SaveShoppingList(SaveShoppingListRequest) returns (SaveResponse);
+  rpc GetShoppingList(GetShoppingListRequest) returns (ShoppingListResponse);
+  rpc AddShoppingItem(AddShoppingItemRequest) returns (SaveResponse);
+  rpc RemoveShoppingItem(RemoveShoppingItemRequest) returns (SaveResponse);
+
+  // Reminder methods
+  rpc SaveReminder(SaveReminderRequest) returns (SaveResponse);
+  rpc GetReminders(GetRemindersRequest) returns (RemindersResponse);
+  rpc DeleteReminder(DeleteReminderRequest) returns (SaveResponse);
+  rpc GetUpcomingReminders(GetUpcomingRemindersRequest) returns (RemindersResponse);
+  rpc MarkReminderNotified(MarkReminderNotifiedRequest) returns (SaveResponse);
+}
+
+// Shopping List Messages
+message SaveShoppingListRequest {
+  string session_id = 1;
+  repeated ShoppingItem items = 2;
+}
+
+message GetShoppingListRequest {
+  string session_id = 1;
+}
+
+message AddShoppingItemRequest {
+  string session_id = 1;
+  ShoppingItem item = 2;
+}
+
+message RemoveShoppingItemRequest {
+  string session_id = 1;
+  string item_id = 2;
+}
+
+message ShoppingItem {
+  string id = 1;
+  string name = 2;
+  int32 quantity = 3;
+  string unit = 4;
+  int32 priority = 5; // corresponds to Priority enum
+}
+
+message ShoppingListResponse {
+  bool success = 1;
+  string message = 2;
+  string session_id = 3;
+  repeated ShoppingItem items = 4;
+}
+
+// Reminder Messages
+message SaveReminderRequest {
+  string session_id = 1;
+  string description = 2;
+  int64 reminder_timestamp = 3; // Unix timestamp
+  string location = 4;
+  string repeat_interval = 5;
+}
+
+message GetRemindersRequest {
+  string session_id = 1;
+  int64 date_range_start = 2; // Unix timestamp
+  int64 date_range_end = 3;   // Unix timestamp
+}
+
+message GetUpcomingRemindersRequest {
+  string session_id = 1;
+  int32 within_minutes = 2;
+}
+
+message DeleteReminderRequest {
+  string reminder_id = 1;
+}
+
+message MarkReminderNotifiedRequest {
+  string reminder_id = 1;
+}
+
+message Reminder {
+  string id = 1;
+  string session_id = 2;
+  string description = 3;
+  int64 reminder_timestamp = 4; // Unix timestamp
+  string location = 5;
+  string repeat_interval = 6;
+  int64 created_at = 7; // Unix timestamp
+  bool notified = 8;
+}
+
+message RemindersResponse {
+  bool success = 1;
+  string message = 2;
+  repeated Reminder reminders = 3;
+}
+
+// Common Response Message
+message SaveResponse {
+  bool success = 1;
+  string message = 2;
+  string id = 3; // Optional ID for created entities
+}

@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+package voice_assistant.nlu;
+
+// Intent and entity messages
+message Intent {
+    string name = 1;
+    float confidence = 2;
+    map<string, string> entities = 3;
+    string raw_text = 4;
+    string session_id = 5;
+}
+
+message IntentRequest {
+    string text = 1;
+    string session_id = 2;
+    string language = 3;
+    map<string, string> context = 4;
+}
+
+message IntentResponse {
+    Intent intent = 1;
+    bool success = 2;
+    string error_message = 3;
+}
+
+// NLU Service
+service NLUService {
+    rpc ExtractIntent(IntentRequest) returns (IntentResponse);
+    rpc GetSupportedIntents(SupportedIntentsRequest) returns (SupportedIntentsResponse);
+}
+
+message SupportedIntentsRequest {
+    string language = 1;
+}
+
+message SupportedIntentsResponse {
+    repeated string intent_names = 1;
+}
